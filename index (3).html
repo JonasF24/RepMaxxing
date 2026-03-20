@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0A0F1E" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="description" content="Track your bodyweight max reps — push-ups, pull-ups, sit-ups, squats. Daily streaks, XP, and progress charts." />
+  <title>RepMax Tracker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      background: #060C1A;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh;
+    }
+    #root { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+    ::-webkit-scrollbar { display: none; }
+    * { scrollbar-width: none; }
+    button { font-family: inherit; }
+    input { font-family: inherit; }
+    button:active { transform: scale(0.96); }
+    @keyframes slideDown {
+      from { transform: translateY(-24px); opacity: 0; }
+      to   { transform: translateY(0);     opacity: 1; }
+    }
+    @keyframes popIn {
+      0%   { transform: scale(0.8); opacity: 0; }
+      70%  { transform: scale(1.05); }
+      100% { transform: scale(1);   opacity: 1; }
+    }
+    input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(0.7); }
+    @media (max-width: 430px) {
+      .phone-wrap { width: 100vw !important; height: 100svh !important; border-radius: 0 !important; border: none !important; }
+    }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/recharts@2.8.0/umd/Recharts.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel">
+const { useState, useMemo, useCallback, useEffect, useRef } = React;
+const { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } = Recharts;
+
+/* ─── Design Tokens ─────────────────────────────────────────────── */
+const C = {
+  bg: "#0A0F1E", surf: "#0F1929", surf2: "#162035", surf3: "#1A2640",
+  border: "#1E3050", green: "#22C55E", orange: "#F97316", purple: "#A855F7",
+  blue: "#3B82F6", text: "#F1F5F9", muted: "#64748B", gold: "#EAB308",
+  danger: "#EF4444", teal: "#14B8A6",
+};
+
+/* ─── SVG Icons ─────────────────────────────────────────────────── */
+const Ic = {
+  Flame: ({sz=20,c="currentColor"}) => <svg width={sz} height={sz} viewBox="0 0 24 24" fill={c}><path d="M12 23c-4.97 0-9-4.03-9-9 0-4.66 3.39-8.54 8-10.5 0 2.5.75 4.5 2.25 5.5C14 7 15.5 5 14 1.5c4 2 7 7 7 12.5 0 4.97-4.03 9-9 9z"/></svg>,
+  Star: ({sz=20,c="currentColor"}) => <svg width={sz} height={sz} viewBox="0 0 24 24" fill={c}><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>,
+  Home: ({sz=20,c="currentColor"}) => <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
+  Plus: ({sz=20,c="currentColor"}) => <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+  Minus: ({sz=20,c="currentColor"}) => <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+  Chart: ({sz=20,c="currentColor"}) => <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>,
+  Trophy: ({sz=20,c="currentColor"}) => <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="8 21 12 17 16 21"/><line x1="12" y1="17" x2="12" y2="11"/><path d="M7 4h10l1 7H6z"/><path d="M6 4c0 0-2 1-2 4h4"/><path d="M18 4c0 0 2 1 2 4h-4"/></svg>,
+  Settings: ({sz=20,c="currentColor"}) => <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+  Lock: ({sz=20,c="currentColor"}) => <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+  Check: ({sz=20,c="currentColor"}) => <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+  Bell: ({sz=20,c="currentColor"}) => <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
+  Zap: ({sz=20,c="currentColor"}) => <svg width={sz} height={sz} viewBox="0 0 24 24" fill={c}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
+  Award: ({sz=20,c="currentColor"}) => <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>,
+  TrendUp: ({sz=20,c="currentColor"}) => <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>,
+  Muscle: ({sz=20,c="currentColor"}) => <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 6.5c0 0-1.5 1-1.5 3.5s2 4.5 4 5.5c1 .5 2 2 2 3.5 0 0 1-1.5 1-3.5 0-1.5-.5-3-2-4"/><path d="M19 10c0-2-1.5-4-3.5-4s-4 2-4 4 1.5 4 3.5 4 4-2 4-4z"/></svg>,
+  ArrowUp: ({sz=20,c="currentColor"}) => <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>,
+  Rotate: ({sz=20,c="currentColor"}) => <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>,
+  Legs: ({sz=20,c="currentColor"}) => <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3c0 0-1 6 0 9s4 5 4 9"/><path d="M16 3c0 0 1 6 0 9s-4 5-4 9"/><line x1="6" y1="12" x2="18" y2="12"/></svg>,
+  GithubIcon: ({sz=20,c="currentColor"}) => <svg width={sz} height={sz} viewBox="0 0 24 24" fill={c}><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>,
+};
+
+/* ─── Exercises ─────────────────────────────────────────────────── */
+const EXES = [
+  { id:"pushups", label:"Push Ups",  short:"PU", color:C.green,  g:["#16A34A","#22C55E"], Icon:Ic.Muscle  },
+  { id:"pullups", label:"Pull Ups",  short:"PL", color:C.purple, g:["#7C3AED","#A855F7"], Icon:Ic.ArrowUp },
+  { id:"situps",  label:"Sit Ups",   short:"SU", color:C.blue,   g:["#1D4ED8","#3B82F6"], Icon:Ic.Rotate  },
+  { id:"squats",  label:"Squats",    short:"SQ", color:C.orange, g:["#C2410C","#F97316"], Icon:Ic.Legs    },
+];
+
+/* ─── Achievements ──────────────────────────────────────────────── */
+const ACHS = [
+  { id:"a1",  label:"First Step",   desc:"Log your first session",         Icon:Ic.Star,    xp:100,  check:(l,s)=>l.length>=1 },
+  { id:"a2",  label:"On Fire",      desc:"Achieve a 3-day streak",         Icon:Ic.Flame,   xp:150,  check:(l,s)=>s>=3 },
+  { id:"a3",  label:"Week Warrior", desc:"Achieve a 7-day streak",         Icon:Ic.Flame,   xp:300,  check:(l,s)=>s>=7 },
+  { id:"a4",  label:"Consistent",   desc:"Log 10 total sessions",          Icon:Ic.TrendUp, xp:200,  check:(l,s)=>l.length>=10 },
+  { id:"a5",  label:"Half Century", desc:"50 push-ups in one session",     Icon:Ic.Muscle,  xp:200,  check:(l,s)=>l.some(x=>x.pushups>=50) },
+  { id:"a6",  label:"Iron Arms",    desc:"20 pull-ups in one session",     Icon:Ic.Award,   xp:250,  check:(l,s)=>l.some(x=>x.pullups>=20) },
+  { id:"a7",  label:"Core King",    desc:"100 sit-ups in one session",     Icon:Ic.Zap,     xp:300,  check:(l,s)=>l.some(x=>x.situps>=100) },
+  { id:"a8",  label:"Leg Legend",   desc:"100 squats in one session",      Icon:Ic.Legs,    xp:300,  check:(l,s)=>l.some(x=>x.squats>=100) },
+  { id:"a9",  label:"Century Club", desc:"100 push-ups in one session",    Icon:Ic.Trophy,  xp:500,  check:(l,s)=>l.some(x=>x.pushups>=100) },
+  { id:"a10", label:"Monthly Hero", desc:"30-day streak",                  Icon:Ic.Trophy,  xp:1000, check:(l,s)=>s>=30 },
+  { id:"a11", label:"Dedicated",    desc:"Log 30 total sessions",          Icon:Ic.Award,   xp:500,  check:(l,s)=>l.length>=30 },
+  { id:"a12", label:"Legend",       desc:"Log 100 sessions",               Icon:Ic.Star,    xp:1000, check:(l,s)=>l.length>=100 },
+];
+
+/* ─── Helpers ───────────────────────────────────────────────────── */
+const todayStr = () => new Date().toISOString().split("T")[0];
+
+const fmtDate = ds => new Date(ds+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"});
+
+function calcStreak(logs) {
+  const dates = new Set(logs.map(l => l.date));
+  const today = todayStr();
+  let streak = 0;
+  const d = new Date();
+  if (!dates.has(today)) d.setDate(d.getDate() - 1);
+  for (let i = 0; i < 400; i++) {
+    const ds = d.toISOString().split("T")[0];
+    if (dates.has(ds)) { streak++; d.setDate(d.getDate()-1); }
+    else break;
+  }
+  return streak;
+}
+
+const XP_THRESHOLDS = [0,500,1200,2000,3000,4500,6500,9000,12000,16000,21000];
+function calcLevel(totalXP) {
+  let xp = totalXP, level = 1;
+  while (level < XP_THRESHOLDS.length-1 && xp >= XP_THRESHOLDS[level]) {
+    xp -= XP_THRESHOLDS[level]; level++;
+  }
+  const needed = XP_THRESHOLDS[Math.min(level, XP_THRESHOLDS.length-1)] || 25000;
+  return { level, xpInLevel: xp, xpNeeded: needed };
+}
+
+function calcTotalXP(logs) {
+  return 500 + logs.reduce((s,l) => s+(l.xp||100), 0);
+}
+
+function calcPRs(logs) {
+  return EXES.reduce((acc,ex) => {
+    acc[ex.id] = logs.length ? Math.max(0,...logs.map(l=>l[ex.id]||0)) : 0;
+    return acc;
+  }, {});
+}
+
+/* ─── LocalStorage I/O ──────────────────────────────────────────── */
+const LS_KEY = "repmax_v2";
+function loadData() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch { return null; }
+}
+function saveData(data) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch {}
+}
+
+/* ─── Toast ─────────────────────────────────────────────────────── */
+function Toast({ msg, type }) {
+  if (!msg) return null;
+  const bg = type === "success" ? C.green : C.danger;
+  return (
+    <div style={{
+      position:"absolute", top:60, left:12, right:12, zIndex:200,
+      background:bg, borderRadius:14, padding:"13px 16px",
+      color:"#fff", fontWeight:700, fontSize:14, textAlign:"center",
+      boxShadow:`0 6px 28px ${bg}55`,
+      animation:"slideDown 0.3s ease",
+    }}>{msg}</div>
+  );
+}
+
+/* ─── Home Page ─────────────────────────────────────────────────── */
+function HomePage({ logs, streak, level, xpInLevel, xpNeeded, totalXP, prs, todayLogged, setPage, unlockedIds }) {
+  const xpPct = Math.min(100,(xpInLevel/xpNeeded)*100);
+  const today = new Date();
+  const last7 = useMemo(() => {
+    return Array.from({length:7}, (_,i) => {
+      const d = new Date(today); d.setDate(d.getDate()-(6-i));
+      const ds = d.toISOString().split("T")[0];
+      const log = logs.find(l=>l.date===ds);
+      return { day:d.toLocaleDateString("en-US",{weekday:"short"}).slice(0,1), done:!!log };
+    });
+  }, [logs]);
+
+  const recentAch = ACHS.filter(a=>unlockedIds.has(a.id)).slice(-3).reverse();
+
+  return (
+    <div style={{padding:"0 14px 110px", display:"flex", flexDirection:"column", gap:14}}>
+      {/* Streak + XP Row */}
+      <div style={{display:"flex", gap:10}}>
+        <div style={{flex:1, background:C.surf, borderRadius:16, padding:"14px 16px", border:`1px solid ${C.border}`, display:"flex", alignItems:"center", gap:10}}>
+          <div style={{width:44,height:44,borderRadius:12,background:`${C.orange}22`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            <Ic.Flame sz={22} c={streak>0?C.orange:C.muted}/>
+          </div>
+          <div>
+            <div style={{fontSize:26,fontWeight:900,color:streak>0?C.orange:C.muted,lineHeight:1}}>{streak}</div>
+            <div style={{fontSize:11,color:C.muted,fontWeight:600}}>day streak</div>
+          </div>
+        </div>
+        <div style={{flex:1, background:C.surf, borderRadius:16, padding:"14px 16px", border:`1px solid ${C.border}`, display:"flex", flexDirection:"column", justifyContent:"center", gap:7}}>
+          <div style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+            <div style={{display:"flex",gap:5,alignItems:"center"}}>
+              <Ic.Zap sz={13} c={C.gold}/>
+              <span style={{fontSize:11,color:C.muted,fontWeight:700}}>Level {level}</span>
+            </div>
+            <span style={{fontSize:11,color:C.gold,fontWeight:700}}>{xpInLevel}/{xpNeeded}</span>
+          </div>
+          <div style={{height:6,borderRadius:99,background:C.border}}>
+            <div style={{height:6,borderRadius:99,width:`${xpPct}%`,background:`linear-gradient(90deg,${C.gold},${C.orange})`,transition:"width 0.6s"}}/>
+          </div>
+        </div>
+      </div>
+
+      {/* Week view */}
+      <div style={{background:C.surf, borderRadius:16, padding:"14px 16px", border:`1px solid ${C.border}`}}>
+        <div style={{fontSize:11,color:C.muted,fontWeight:700,letterSpacing:.8,marginBottom:12}}>THIS WEEK</div>
+        <div style={{display:"flex", justifyContent:"space-between"}}>
+          {last7.map((d,i)=>(
+            <div key={i} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
+              <div style={{
+                width:36,height:36,borderRadius:10,
+                background:d.done?`${C.green}20`:C.surf2,
+                border:`2px solid ${d.done?C.green:C.border}`,
+                display:"flex",alignItems:"center",justifyContent:"center",
+                transition:"all 0.2s",
+              }}>
+                {d.done && <Ic.Check sz={16} c={C.green}/>}
+              </div>
+              <span style={{fontSize:10,color:d.done?C.green:C.muted,fontWeight:700}}>{d.day}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* CTA */}
+      {!todayLogged ? (
+        <button onClick={()=>setPage("log")} style={{
+          border:"none",cursor:"pointer",
+          background:`linear-gradient(135deg,#16A34A,#22C55E)`,
+          borderRadius:18,padding:"20px 22px",textAlign:"left",
+          boxShadow:`0 10px 36px ${C.green}44`,
+          transition:"transform 0.2s, box-shadow 0.2s",
+        }}>
+          <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",fontWeight:700,letterSpacing:.8,marginBottom:4}}>TODAY'S CHALLENGE</div>
+          <div style={{fontSize:20,color:"#fff",fontWeight:900}}>Log your max reps</div>
+          <div style={{fontSize:13,color:"rgba(255,255,255,0.8)",marginTop:4}}>Beat your PRs to earn bonus XP</div>
+          <div style={{marginTop:14,background:"rgba(255,255,255,0.15)",borderRadius:12,padding:"10px 14px",display:"flex",justifyContent:"space-between"}}>
+            {EXES.map(ex=>(
+              <div key={ex.id} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                <ex.Icon sz={15} c="#fff"/>
+                <span style={{fontSize:10,color:"rgba(255,255,255,0.75)",fontWeight:600}}>{ex.short}</span>
+                <span style={{fontSize:12,color:"#fff",fontWeight:900}}>{prs[ex.id]}</span>
+              </div>
+            ))}
+          </div>
+        </button>
+      ) : (
+        <div style={{background:C.surf,borderRadius:16,padding:"16px 18px",border:`2px solid ${C.green}44`,display:"flex",alignItems:"center",gap:12}}>
+          <div style={{width:40,height:40,borderRadius:12,background:`${C.green}22`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            <Ic.Check sz={20} c={C.green}/>
+          </div>
+          <div>
+            <div style={{fontSize:15,fontWeight:800,color:C.text}}>Workout logged!</div>
+            <div style={{fontSize:12,color:C.muted}}>Come back tomorrow to extend your streak</div>
+          </div>
+        </div>
+      )}
+
+      {/* PR Grid */}
+      <div style={{fontSize:11,color:C.muted,fontWeight:700,letterSpacing:.8}}>PERSONAL RECORDS</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+        {EXES.map(ex=>(
+          <div key={ex.id} style={{background:C.surf,borderRadius:16,padding:"14px 16px",border:`1px solid ${C.border}`,display:"flex",flexDirection:"column",gap:8}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <div style={{width:32,height:32,borderRadius:9,background:`${ex.color}22`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                <ex.Icon sz={16} c={ex.color}/>
+              </div>
+              <span style={{fontSize:11,color:C.muted,fontWeight:600,lineHeight:1.2}}>{ex.label}</span>
+            </div>
+            <div style={{fontSize:30,fontWeight:900,color:ex.color,lineHeight:1}}>{prs[ex.id]}</div>
+            <div style={{fontSize:10,color:C.muted}}>max reps</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Recent achievements */}
+      {recentAch.length>0 && <>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span style={{fontSize:11,color:C.muted,fontWeight:700,letterSpacing:.8}}>RECENT ACHIEVEMENTS</span>
+          <button onClick={()=>setPage("ach")} style={{border:"none",background:"none",color:C.blue,fontSize:12,fontWeight:700,cursor:"pointer"}}>See all</button>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {recentAch.map(a=>(
+            <div key={a.id} style={{background:C.surf,borderRadius:14,padding:"13px 15px",border:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:12}}>
+              <div style={{width:40,height:40,borderRadius:12,background:`${C.gold}22`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                <a.Icon sz={20} c={C.gold}/>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:14,fontWeight:700,color:C.text}}>{a.label}</div>
+                <div style={{fontSize:11,color:C.muted}}>{a.desc}</div>
+              </div>
+              <div style={{fontSize:12,fontWeight:800,color:C.gold}}>+{a.xp}</div>
+            </div>
+          ))}
+        </div>
+      </>}
+    </div>
+  );
+}
+
+/* ─── Log Page ──────────────────────────────────────────────────── */
+function LogPage({ reps, setReps, onSubmit, todayLogged, prs }) {
+  const canSubmit = Object.values(reps).some(v=>v>0);
+  return (
+    <div style={{padding:"0 14px 110px",display:"flex",flexDirection:"column",gap:14}}>
+      <div style={{fontSize:13,color:C.muted,textAlign:"center",fontWeight:500}}>
+        {new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}
+      </div>
+      {todayLogged && (
+        <div style={{background:`${C.orange}18`,borderRadius:12,padding:"11px 15px",border:`1px solid ${C.orange}44`}}>
+          <span style={{color:C.orange,fontSize:13,fontWeight:600}}>You already logged today — updating your session</span>
+        </div>
+      )}
+      {EXES.map(ex=>{
+        const val = reps[ex.id];
+        const isPR = val > 0 && val > prs[ex.id];
+        return (
+          <div key={ex.id} style={{
+            background:C.surf, borderRadius:18, padding:"16px 18px",
+            border:`1.5px solid ${isPR?ex.color:C.border}`,
+            boxShadow:isPR?`0 0 24px ${ex.color}30`:"none",
+            transition:"all 0.2s",
+          }}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+              <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                <div style={{width:40,height:40,borderRadius:11,background:`linear-gradient(135deg,${ex.g[0]},${ex.g[1]})`,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <ex.Icon sz={20} c="#fff"/>
+                </div>
+                <div>
+                  <div style={{fontSize:15,fontWeight:800,color:C.text}}>{ex.label}</div>
+                  <div style={{fontSize:11,color:C.muted}}>PR: {prs[ex.id]} reps</div>
+                </div>
+              </div>
+              {isPR && (
+                <div style={{background:`${ex.color}22`,borderRadius:8,padding:"4px 10px",fontSize:11,fontWeight:800,color:ex.color,animation:"popIn 0.3s ease"}}>
+                  NEW PR!
+                </div>
+              )}
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <button
+                onClick={()=>setReps(r=>({...r,[ex.id]:Math.max(0,r[ex.id]-1)}))}
+                aria-label={`Decrease ${ex.label}`}
+                style={{width:48,height:48,borderRadius:14,border:`1px solid ${C.border}`,background:C.surf2,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.15s"}}
+              ><Ic.Minus sz={20} c={C.muted}/></button>
+              <div style={{flex:1,textAlign:"center",fontSize:48,fontWeight:900,color:val>0?ex.color:C.muted,lineHeight:1,transition:"color 0.2s"}}>
+                {val}
+              </div>
+              <button
+                onClick={()=>setReps(r=>({...r,[ex.id]:r[ex.id]+1}))}
+                aria-label={`Increase ${ex.label}`}
+                style={{width:48,height:48,borderRadius:14,border:"none",background:`linear-gradient(135deg,${ex.g[0]},${ex.g[1]})`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.15s"}}
+              ><Ic.Plus sz={20} c="#fff"/></button>
+            </div>
+          </div>
+        );
+      })}
+      <button onClick={onSubmit} disabled={!canSubmit} style={{
+        border:"none",borderRadius:16,padding:"17px 24px",fontSize:16,fontWeight:800,cursor:canSubmit?"pointer":"not-allowed",
+        background:canSubmit?`linear-gradient(135deg,#16A34A,#22C55E)`:C.surf2,
+        color:canSubmit?"#fff":C.muted,
+        boxShadow:canSubmit?`0 10px 30px ${C.green}44`:"none",
+        transition:"all 0.2s",
+      }}>
+        {canSubmit ? "Log Workout ✦" : "Enter at least one exercise"}
+      </button>
+    </div>
+  );
+}
+
+/* ─── Progress Page ─────────────────────────────────────────────── */
+function ProgressPage({ logs, prs }) {
+  const [activeEx, setActiveEx] = useState(0);
+  const [range, setRange] = useState("30");
+
+  const ex = EXES[activeEx];
+
+  const chartData = useMemo(() => {
+    const sorted = [...logs].sort((a,b)=>a.date.localeCompare(b.date));
+    const cutoff = range==="all" ? null : (() => {
+      const d=new Date(); d.setDate(d.getDate()-parseInt(range)); return d.toISOString().split("T")[0];
+    })();
+    return sorted.filter(l=>!cutoff||l.date>=cutoff).map(l=>({ date:fmtDate(l.date), val:l[ex.id]||0 }));
+  }, [logs, activeEx, range]);
+
+  const sortedLogs = useMemo(() => [...logs].sort((a,b)=>a.date.localeCompare(b.date)), [logs]);
+  const firstVal = sortedLogs.length ? (sortedLogs[0][ex.id]||0) : 0;
+  const lastVal  = sortedLogs.length ? (sortedLogs[sortedLogs.length-1][ex.id]||0) : 0;
+  const improvePct = firstVal > 0 ? Math.round(((lastVal-firstVal)/firstVal)*100) : 0;
+
+  return (
+    <div style={{padding:"0 14px 110px",display:"flex",flexDirection:"column",gap:14}}>
+      {/* Exercise tabs */}
+      <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:2}}>
+        {EXES.map((e,i)=>(
+          <button key={e.id} onClick={()=>setActiveEx(i)} style={{
+            border:activeEx===i?"none":`1px solid ${C.border}`,
+            borderRadius:10,padding:"8px 14px",cursor:"pointer",flexShrink:0,
+            background:activeEx===i?`linear-gradient(135deg,${e.g[0]},${e.g[1]})`:C.surf,
+            color:activeEx===i?"#fff":C.muted,fontSize:13,fontWeight:700,transition:"all 0.2s",
+          }}>{e.label}</button>
+        ))}
+      </div>
+      {/* Range tabs */}
+      <div style={{display:"flex",gap:6}}>
+        {[["7","7 Days"],["30","30 Days"],["all","All Time"]].map(([v,l])=>(
+          <button key={v} onClick={()=>setRange(v)} style={{
+            border:`1px solid ${range===v?ex.color:C.border}`,
+            borderRadius:8,padding:"6px 12px",cursor:"pointer",
+            background:range===v?`${ex.color}18`:C.surf,
+            color:range===v?ex.color:C.muted,fontSize:12,fontWeight:700,transition:"all 0.2s",
+          }}>{l}</button>
+        ))}
+      </div>
+      {/* Chart card */}
+      <div style={{background:C.surf,borderRadius:18,padding:"16px 16px",border:`1px solid ${C.border}`}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
+          <div>
+            <div style={{fontSize:12,color:C.muted,fontWeight:600}}>{ex.label} · Personal Best</div>
+            <div style={{fontSize:32,fontWeight:900,color:ex.color,lineHeight:1.1}}>
+              {prs[ex.id]} <span style={{fontSize:14,color:C.muted,fontWeight:500}}>reps</span>
+            </div>
+            {improvePct !== 0 && (
+              <div style={{fontSize:12,color:improvePct>0?C.green:C.danger,fontWeight:700,marginTop:3}}>
+                {improvePct>0?"+":""}{improvePct}% since you started
+              </div>
+            )}
+          </div>
+          <div style={{width:40,height:40,borderRadius:11,background:`${ex.color}22`,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <ex.Icon sz={20} c={ex.color}/>
+          </div>
+        </div>
+        {chartData.length > 1 ? (
+          <ResponsiveContainer width="100%" height={170}>
+            <LineChart data={chartData} margin={{top:5,right:5,bottom:0,left:-30}}>
+              <CartesianGrid strokeDasharray="3 3" stroke={C.border}/>
+              <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={false}/>
+              <YAxis tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={false}/>
+              <Tooltip
+                contentStyle={{background:C.surf2,border:`1px solid ${C.border}`,borderRadius:10,color:C.text,fontSize:12}}
+                labelStyle={{color:C.muted,marginBottom:4}}
+              />
+              <Line type="monotone" dataKey="val" stroke={ex.color} strokeWidth={3} dot={{fill:ex.color,r:4,strokeWidth:0}} name="Reps" activeDot={{r:6,strokeWidth:0}}/>
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <div style={{height:170,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:8}}>
+            <Ic.Chart sz={32} c={C.muted}/>
+            <span style={{color:C.muted,fontSize:13}}>Log more sessions to see your chart</span>
+          </div>
+        )}
+      </div>
+
+      {/* All PRs summary */}
+      <div style={{fontSize:11,color:C.muted,fontWeight:700,letterSpacing:.8}}>ALL-TIME RECORDS</div>
+      {EXES.map(e=>(
+        <div key={e.id} style={{background:C.surf,borderRadius:16,padding:"14px 16px",border:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:12}}>
+          <div style={{width:44,height:44,borderRadius:12,background:`linear-gradient(135deg,${e.g[0]},${e.g[1]})`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            <e.Icon sz={20} c="#fff"/>
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:14,fontWeight:700,color:C.text}}>{e.label}</div>
+            <div style={{fontSize:11,color:C.muted}}>personal best</div>
+          </div>
+          <div style={{fontSize:28,fontWeight:900,color:e.color}}>{prs[e.id]}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ─── Achievements Page ─────────────────────────────────────────── */
+function AchievPage({ logs, streak, unlockedIds, totalXP, level, xpInLevel, xpNeeded }) {
+  const unlocked = ACHS.filter(a=>unlockedIds.has(a.id));
+  const locked   = ACHS.filter(a=>!unlockedIds.has(a.id));
+  const xpPct = Math.min(100,(xpInLevel/xpNeeded)*100);
+  return (
+    <div style={{padding:"0 14px 110px",display:"flex",flexDirection:"column",gap:14}}>
+      {/* Level card */}
+      <div style={{background:`linear-gradient(135deg,#1A1040,#2D1B69)`,borderRadius:20,padding:"22px 20px",border:`1px solid #4C1D95`,display:"flex",flexDirection:"column",alignItems:"center",gap:10}}>
+        <div style={{fontSize:11,color:"#C4B5FD",fontWeight:700,letterSpacing:1}}>CURRENT LEVEL</div>
+        <div style={{fontSize:60,fontWeight:900,color:"#fff",lineHeight:1}}>{level}</div>
+        <div style={{fontSize:13,color:"#C4B5FD"}}>{totalXP.toLocaleString()} total XP earned</div>
+        <div style={{width:"100%",height:8,borderRadius:99,background:"rgba(255,255,255,0.1)"}}>
+          <div style={{height:8,borderRadius:99,width:`${xpPct}%`,background:`linear-gradient(90deg,#7C3AED,#A855F7)`,transition:"width 0.6s"}}/>
+        </div>
+        <div style={{fontSize:11,color:"#C4B5FD"}}>{xpInLevel} / {xpNeeded} XP to level {level+1}</div>
+      </div>
+      {/* Stats */}
+      <div style={{display:"flex",gap:10}}>
+        {[{label:"Sessions",val:logs.length,c:C.blue},{label:"Streak",val:`${streak}d`,c:C.orange},{label:"Badges",val:unlocked.length,c:C.gold}].map(st=>(
+          <div key={st.label} style={{flex:1,background:C.surf,borderRadius:14,padding:"14px 10px",border:`1px solid ${C.border}`,textAlign:"center"}}>
+            <div style={{fontSize:22,fontWeight:900,color:st.c}}>{st.val}</div>
+            <div style={{fontSize:10,color:C.muted,fontWeight:600}}>{st.label}</div>
+          </div>
+        ))}
+      </div>
+      {/* Unlocked badges */}
+      {unlocked.length>0 && <>
+        <div style={{fontSize:11,color:C.muted,fontWeight:700,letterSpacing:.8}}>UNLOCKED · {unlocked.length}</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          {unlocked.map(a=>(
+            <div key={a.id} style={{background:`linear-gradient(135deg,${C.surf},${C.surf2})`,borderRadius:18,padding:16,border:`1px solid ${C.gold}44`,display:"flex",flexDirection:"column",alignItems:"center",gap:9,boxShadow:`0 4px 20px ${C.gold}15`}}>
+              <div style={{width:52,height:52,borderRadius:16,background:`${C.gold}22`,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <a.Icon sz={26} c={C.gold}/>
+              </div>
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:13,fontWeight:800,color:C.text}}>{a.label}</div>
+                <div style={{fontSize:10,color:C.muted,marginTop:3,lineHeight:1.3}}>{a.desc}</div>
+              </div>
+              <div style={{fontSize:12,fontWeight:800,color:C.gold}}>+{a.xp} XP</div>
+            </div>
+          ))}
+        </div>
+      </>}
+      {/* Locked badges */}
+      {locked.length>0 && <>
+        <div style={{fontSize:11,color:C.muted,fontWeight:700,letterSpacing:.8}}>LOCKED · {locked.length}</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          {locked.map(a=>(
+            <div key={a.id} style={{background:C.surf,borderRadius:18,padding:16,border:`1px solid ${C.border}`,display:"flex",flexDirection:"column",alignItems:"center",gap:9,opacity:.45}}>
+              <div style={{width:52,height:52,borderRadius:16,background:C.surf2,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <Ic.Lock sz={22} c={C.muted}/>
+              </div>
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:13,fontWeight:800,color:C.muted}}>{a.label}</div>
+                <div style={{fontSize:10,color:C.border,marginTop:3,lineHeight:1.3}}>{a.desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </>}
+    </div>
+  );
+}
+
+/* ─── Settings Page ─────────────────────────────────────────────── */
+function SettingsPage({ notifEnabled, setNotifEnabled, notifTime, setNotifTime, onReset }) {
+  const handleNotif = async () => {
+    if (!notifEnabled) {
+      if ("Notification" in window) {
+        const perm = await Notification.requestPermission();
+        if (perm === "granted") {
+          setNotifEnabled(true);
+          new Notification("RepMax Tracker 💪", { body:"Daily reminders enabled! See you tomorrow.", icon:"/favicon.ico" });
+        }
+      } else {
+        alert("Notifications are not supported in this browser.");
+      }
+    } else {
+      setNotifEnabled(false);
+    }
+  };
+
+  return (
+    <div style={{padding:"0 14px 110px",display:"flex",flexDirection:"column",gap:14}}>
+      {/* Notifications */}
+      <div style={{background:C.surf,borderRadius:18,padding:"18px 18px",border:`1px solid ${C.border}`}}>
+        <div style={{fontSize:11,color:C.muted,fontWeight:700,letterSpacing:.8,marginBottom:16}}>NOTIFICATIONS</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:notifEnabled?16:0}}>
+          <div>
+            <div style={{fontSize:15,fontWeight:700,color:C.text}}>Daily Reminder</div>
+            <div style={{fontSize:12,color:C.muted,marginTop:2}}>Remind me to log my workout each day</div>
+          </div>
+          <button onClick={handleNotif} aria-label="Toggle notifications" style={{
+            width:52,height:30,borderRadius:99,border:"none",cursor:"pointer",
+            background:notifEnabled?C.green:C.border,transition:"all 0.2s",position:"relative",flexShrink:0,
+          }}>
+            <div style={{position:"absolute",top:4,width:22,height:22,borderRadius:99,background:"#fff",transition:"left 0.2s",left:notifEnabled?26:4}}/>
+          </button>
+        </div>
+        {notifEnabled && (
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:12,borderTop:`1px solid ${C.border}`}}>
+            <div>
+              <div style={{fontSize:15,fontWeight:700,color:C.text}}>Reminder Time</div>
+              <div style={{fontSize:12,color:C.muted,marginTop:2}}>Daily push notification time</div>
+            </div>
+            <input type="time" value={notifTime} onChange={e=>setNotifTime(e.target.value)}
+              style={{background:C.surf2,border:`1px solid ${C.border}`,borderRadius:10,color:C.text,padding:"8px 12px",fontSize:14,fontWeight:700,outline:"none"}}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* About */}
+      <div style={{background:C.surf,borderRadius:18,padding:"18px 18px",border:`1px solid ${C.border}`}}>
+        <div style={{fontSize:11,color:C.muted,fontWeight:700,letterSpacing:.8,marginBottom:16}}>ABOUT</div>
+        {[["App","RepMax Tracker"],["Version","1.0.0"],["Stack","React · Recharts · PWA"],["Deploy","GitHub Pages"]].map(([k,v])=>(
+          <div key={k} style={{display:"flex",justifyContent:"space-between",paddingBottom:12}}>
+            <span style={{fontSize:14,color:C.muted}}>{k}</span>
+            <span style={{fontSize:14,color:C.text,fontWeight:600}}>{v}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* GitHub */}
+      <a href="https://github.com" target="_blank" rel="noopener noreferrer" style={{
+        textDecoration:"none",background:C.surf,borderRadius:16,padding:"16px 18px",
+        border:`1px solid ${C.green}40`,display:"flex",alignItems:"center",justifyContent:"center",gap:10,
+        color:C.green,fontWeight:700,fontSize:14,
+      }}>
+        <Ic.GithubIcon sz={18} c={C.green}/> Star on GitHub
+      </a>
+
+      {/* Reset */}
+      <button onClick={onReset} style={{
+        border:`1px solid ${C.danger}40`,borderRadius:16,padding:"14px 18px",
+        background:`${C.danger}10`,color:C.danger,fontSize:14,fontWeight:700,cursor:"pointer",
+      }}>
+        Reset All Data
+      </button>
+    </div>
+  );
+}
+
+/* ─── Bottom Nav ────────────────────────────────────────────────── */
+function BottomNav({ page, setPage }) {
+  const tabs = [
+    { id:"home", Icon:Ic.Home,     label:"Home"     },
+    { id:"log",  Icon:Ic.Plus,     label:"Log"      },
+    { id:"prog", Icon:Ic.Chart,    label:"Progress" },
+    { id:"ach",  Icon:Ic.Trophy,   label:"Rewards"  },
+    { id:"set",  Icon:Ic.Settings, label:"Settings" },
+  ];
+  return (
+    <div style={{position:"absolute",bottom:0,left:0,right:0,background:C.surf,borderTop:`1px solid ${C.border}`,display:"grid",gridTemplateColumns:"repeat(5,1fr)",paddingBottom:"env(safe-area-inset-bottom)",zIndex:50}}>
+      {tabs.map(t=>{
+        const active = page===t.id;
+        return (
+          <button key={t.id} onClick={()=>setPage(t.id)} aria-label={t.label} style={{
+            border:"none",background:"none",cursor:"pointer",
+            display:"flex",flexDirection:"column",alignItems:"center",
+            padding:"10px 4px 6px",gap:4,
+            color:active?C.green:C.muted,transition:"color 0.2s",
+          }}>
+            <t.Icon sz={22} c={active?C.green:C.muted}/>
+            <span style={{fontSize:9,fontWeight:active?700:500,letterSpacing:.5}}>{t.label.toUpperCase()}</span>
+            {active && <div style={{width:4,height:4,borderRadius:99,background:C.green}}/>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ─── App ───────────────────────────────────────────────────────── */
+function App() {
+  const initState = () => {
+    const saved = loadData();
+    return {
+      logs: saved?.logs || [],
+      notifEnabled: saved?.notifEnabled || false,
+      notifTime: saved?.notifTime || "08:00",
+    };
+  };
+
+  const [logs, setLogs]               = useState(()=>initState().logs);
+  const [notifEnabled, setNotifEnabledState] = useState(()=>initState().notifEnabled);
+  const [notifTime, setNotifTimeState]= useState(()=>initState().notifTime);
+  const [page, setPage]               = useState("home");
+  const [reps, setReps]               = useState({pushups:0,pullups:0,situps:0,squats:0});
+  const [toast, setToast]             = useState(null);
+
+  // Persist to localStorage on changes
+  useEffect(() => {
+    saveData({ logs, notifEnabled, notifTime });
+  }, [logs, notifEnabled, notifTime]);
+
+  const streak      = useMemo(()=>calcStreak(logs),[logs]);
+  const totalXP     = useMemo(()=>calcTotalXP(logs),[logs]);
+  const lvl         = useMemo(()=>calcLevel(totalXP),[totalXP]);
+  const prs         = useMemo(()=>calcPRs(logs),[logs]);
+  const todayLogged = useMemo(()=>logs.some(l=>l.date===todayStr()),[logs]);
+  const unlockedIds = useMemo(()=>new Set(ACHS.filter(a=>a.check(logs,streak)).map(a=>a.id)),[logs,streak]);
+
+  const showToast = useCallback((msg, type="success") => {
+    setToast({msg,type});
+    setTimeout(()=>setToast(null), 3600);
+  }, []);
+
+  const handleLog = useCallback(() => {
+    if (!Object.values(reps).some(v=>v>0)) return;
+    let xp = 100;
+    const newPRs = [];
+    EXES.forEach(ex => { if(reps[ex.id]>prs[ex.id]){xp+=30;newPRs.push(ex.short);} });
+    if (streak > 0) xp += 25;
+    const entry = { date:todayStr(), ...reps, xp };
+    setLogs(prev => [...prev.filter(l=>l.date!==todayStr()), entry].sort((a,b)=>a.date.localeCompare(b.date)));
+    const msg = newPRs.length ? `+${xp} XP! New PRs: ${newPRs.join(",")}` : `+${xp} XP earned! Keep going!`;
+    showToast(msg);
+    setReps({pushups:0,pullups:0,situps:0,squats:0});
+    setPage("home");
+  }, [reps, prs, streak, showToast]);
+
+  const handleReset = () => {
+    if (window.confirm("Reset all your data? This cannot be undone.")) {
+      setLogs([]);
+      showToast("Data reset.", "error");
+    }
+  };
+
+  const setNotifEnabled = (v) => { setNotifEnabledState(v); };
+  const setNotifTime    = (v) => { setNotifTimeState(v); };
+
+  const TITLES = { home:"RepMax", log:"Log Workout", prog:"Progress", ach:"Achievements", set:"Settings" };
+
+  return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:"#060C1A",fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',sans-serif"}}>
+      <div className="phone-wrap" style={{
+        width:390,height:844,background:C.bg,borderRadius:44,overflow:"hidden",
+        position:"relative",boxShadow:"0 36px 90px rgba(0,0,0,0.9)",border:`2px solid ${C.border}`,
+      }}>
+        {/* Status bar */}
+        <div style={{height:52,background:C.bg,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 22px 0",flexShrink:0,zIndex:10,position:"relative"}}>
+          <div style={{fontSize:14,fontWeight:700,color:C.text}}>9:41</div>
+          <div style={{fontSize:16,fontWeight:900,color:C.text,letterSpacing:.5}}>{TITLES[page]}</div>
+          <div style={{display:"flex",alignItems:"center",gap:4}}>
+            <Ic.Flame sz={14} c={streak>0?C.orange:C.muted}/>
+            <span style={{fontSize:12,fontWeight:800,color:streak>0?C.orange:C.muted}}>{streak}</span>
+          </div>
+        </div>
+
+        {/* Toast */}
+        {toast && <Toast msg={toast.msg} type={toast.type}/>}
+
+        {/* Page */}
+        <div style={{position:"absolute",top:52,bottom:72,left:0,right:0,overflowY:"auto",paddingTop:14}}>
+          {page==="home" && <HomePage logs={logs} streak={streak} level={lvl.level} xpInLevel={lvl.xpInLevel} xpNeeded={lvl.xpNeeded} totalXP={totalXP} prs={prs} todayLogged={todayLogged} setPage={setPage} unlockedIds={unlockedIds}/>}
+          {page==="log"  && <LogPage reps={reps} setReps={setReps} onSubmit={handleLog} todayLogged={todayLogged} prs={prs}/>}
+          {page==="prog" && <ProgressPage logs={logs} prs={prs}/>}
+          {page==="ach"  && <AchievPage logs={logs} streak={streak} unlockedIds={unlockedIds} totalXP={totalXP} level={lvl.level} xpInLevel={lvl.xpInLevel} xpNeeded={lvl.xpNeeded}/>}
+          {page==="set"  && <SettingsPage notifEnabled={notifEnabled} setNotifEnabled={setNotifEnabled} notifTime={notifTime} setNotifTime={setNotifTime} onReset={handleReset}/>}
+        </div>
+
+        {/* Bottom Nav */}
+        <div style={{position:"absolute",bottom:0,left:0,right:0}}>
+          <BottomNav page={page} setPage={setPage}/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App/>);
+</script>
+</body>
+</html>
