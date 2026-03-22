@@ -8,6 +8,19 @@
 
 ---
 
+## 🤔 What is RepMax Tracker?
+
+**RepMax Tracker** is a gamified bodyweight fitness tracker that turns your daily exercise habit into a progression game. Every day you log your max reps for four exercises — push-ups, pull-ups, sit-ups, and squats — and the app rewards you with XP, levels, streaks, and achievement badges.
+
+There is **no account or sign-up required** for the core app: everything runs directly in your browser and your data is saved locally on your device. You can optionally connect the included backend to enable cloud sync and authentication across devices.
+
+**How to open the app:**
+- **Quickest way:** Download `index.html` and open it directly in any modern web browser (Chrome, Firefox, Safari, Edge).
+- **Hosted version:** Deploy to GitHub Pages (see the deployment section below) and visit the URL — no installation needed.
+- **With backend:** Start the backend server (`cd backend && npm install && npm start`), then open `index.html` in your browser.
+
+---
+
 ## ✨ Features
 
 | Feature | Description |
