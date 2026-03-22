@@ -28,6 +28,6 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/repmaxxin
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/workouts', require('./routes/workouts'));
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on port ${PORT}`);
 });
