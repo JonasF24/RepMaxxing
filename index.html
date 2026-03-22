@@ -51,7 +51,11 @@ const { useState, useMemo, useCallback, useEffect, useRef } = React;
 const { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } = Recharts;
 
 // API Configuration
-const API_URL = 'http://localhost:5000/api';
+// ⚠️  Change this to your deployed backend URL before hosting.
+// Using 'http://localhost:5000/api' only works when the backend
+// is running on the same machine as the browser, which is never
+// true for GitHub Pages or any other static hosting.
+const API_URL = window.REPMAX_API_URL || 'http://localhost:5000/api';
 
 // Design Tokens
 const C = {
@@ -266,33 +270,98 @@ function AuthPage({ setAuthState, showToast }) {
   );
 }
 
-// Home Page
-function HomePage({ logs, showToast, setPage }) {
-  const todayStr = () => new Date().toISOString().split("T")[0];
-  const today = new Date();
+// Exercise definitions shared across pages
+const EXES = [
+  { id:"pushups", label:"Push Ups" },
+  { id:"pullups", label:"Pull Ups" },
+  { id:"situps",  label:"Sit Ups"  },
+  { id:"squats",  label:"Squats"   },
+];
+
+const todayStr = () => new Date().toISOString().split("T")[0];
+
+function calcPRs(logs) {
   const prs = { pushups: 0, pullups: 0, situps: 0, squats: 0 };
-  
-  if (logs.length > 0) {
-    logs.forEach(log => {
-      if (log.pushups > prs.pushups) prs.pushups = log.pushups;
-      if (log.pullups > prs.pullups) prs.pullups = log.pullups;
-      if (log.situps > prs.situps) prs.situps = log.situps;
-      if (log.squats > prs.squats) prs.squats = log.squats;
+  logs.forEach(log => {
+    EXES.forEach(ex => {
+      if ((log[ex.id] || 0) > prs[ex.id]) prs[ex.id] = log[ex.id];
     });
-  }
+  });
+  return prs;
+}
+
+// Home Page
+function HomePage({ logs, setPage }) {
+  const prs = calcPRs(logs);
+  const todayLogged = logs.some(l => l.date === todayStr());
 
   return (
-    <div style={{padding:"0 14px 110px",display:"flex",flexDirection:"column",gap:14}}>
+    <div style={{padding:"0 14px 80px",display:"flex",flexDirection:"column",gap:14}}>
       <h2 style={{color:C.green,textAlign:"center"}}>Welcome back! 💪</h2>
       <div style={{background:C.surf,borderRadius:16,padding:"16px",border:`1px solid ${C.border}`,textAlign:"center"}}>
         <div style={{color:C.muted,fontSize:13}}>Total workouts logged</div>
         <div style={{fontSize:32,fontWeight:900,color:C.green}}>{logs.length}</div>
       </div>
+      {todayLogged && (
+        <div style={{background:`${C.green}18`,borderRadius:12,padding:"11px 15px",border:`1px solid ${C.green}44`,color:C.green,fontSize:13,fontWeight:600,textAlign:"center"}}>
+          ✓ Workout logged today!
+        </div>
+      )}
       <button onClick={()=>setPage("log")} style={{
         border:"none",borderRadius:16,padding:"16px",fontSize:16,fontWeight:800,
         background:C.green,color:"#000",cursor:"pointer"
       }}>
-        Log Workout
+        {todayLogged ? "Update Today's Workout" : "Log Workout"}
+      </button>
+      <div style={{fontSize:11,color:C.muted,fontWeight:700,letterSpacing:.8}}>PERSONAL RECORDS</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+        {EXES.map(ex => (
+          <div key={ex.id} style={{background:C.surf,borderRadius:16,padding:"14px 16px",border:`1px solid ${C.border}`}}>
+            <div style={{fontSize:11,color:C.muted,fontWeight:600,marginBottom:6}}>{ex.label}</div>
+            <div style={{fontSize:28,fontWeight:900,color:C.green}}>{prs[ex.id]}</div>
+            <div style={{fontSize:10,color:C.muted}}>max reps</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Log Page
+function LogPage({ logs, reps, setReps, onSubmit }) {
+  const prs = calcPRs(logs);
+  const canSubmit = Object.values(reps).some(v => v > 0);
+
+  return (
+    <div style={{padding:"0 14px 80px",display:"flex",flexDirection:"column",gap:14}}>
+      <h2 style={{color:C.text,textAlign:"center",fontSize:18}}>Log Workout</h2>
+      {EXES.map(ex => {
+        const val = reps[ex.id];
+        const isPR = val > 0 && val > prs[ex.id];
+        return (
+          <div key={ex.id} style={{background:C.surf,borderRadius:18,padding:"16px 18px",border:`1.5px solid ${isPR?C.green:C.border}`}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <span style={{fontSize:15,fontWeight:700,color:C.text}}>{ex.label}</span>
+              {isPR && <span style={{background:`${C.green}22`,borderRadius:8,padding:"4px 10px",fontSize:11,fontWeight:800,color:C.green}}>NEW PR!</span>}
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <button onClick={()=>setReps(r=>({...r,[ex.id]:Math.max(0,r[ex.id]-1)}))}
+                style={{width:48,height:48,borderRadius:14,border:`1px solid ${C.border}`,background:C.surf2,cursor:"pointer",fontSize:22,color:C.text,flexShrink:0}}>−</button>
+              <div style={{flex:1,textAlign:"center",fontSize:48,fontWeight:900,color:val>0?C.green:C.muted,lineHeight:1}}>{val}</div>
+              <button onClick={()=>setReps(r=>({...r,[ex.id]:r[ex.id]+1}))}
+                style={{width:48,height:48,borderRadius:14,border:"none",background:C.green,cursor:"pointer",fontSize:22,color:"#000",flexShrink:0}}>+</button>
+            </div>
+          </div>
+        );
+      })}
+      <button onClick={onSubmit} disabled={!canSubmit} style={{
+        border:"none",borderRadius:16,padding:"17px 24px",fontSize:16,fontWeight:800,
+        cursor:canSubmit?"pointer":"not-allowed",
+        background:canSubmit?C.green:C.surf2,
+        color:canSubmit?"#000":C.muted,
+        transition:"all 0.2s"
+      }}>
+        {canSubmit ? "Save Workout" : "Enter at least one exercise"}
       </button>
     </div>
   );
@@ -303,6 +372,7 @@ function App() {
   const [isAuth, setIsAuth] = useState(!!getToken());
   const [logs, setLogs] = useState([]);
   const [page, setPage] = useState("home");
+  const [reps, setReps] = useState({pushups:0,pullups:0,situps:0,squats:0});
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -316,7 +386,10 @@ function App() {
 
   const fetchProfile = async () => {
     const token = getToken();
-    if (!token) return;
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     try {
       const res = await fetch(`${API_URL}/auth/profile`, {
         headers: { "Authorization": `Bearer ${token}` }
@@ -330,6 +403,10 @@ function App() {
       }
     } catch (err) {
       console.error(err);
+      // Network error: clear auth so the user can re-login when the
+      // backend becomes reachable again.
+      clearToken();
+      setIsAuth(false);
     }
     setLoading(false);
   };
@@ -345,6 +422,26 @@ function App() {
     showToast("Logged out");
   };
 
+  const handleLog = async () => {
+    if (!Object.values(reps).some(v => v > 0)) return;
+    const entry = { date: todayStr(), ...reps };
+    const token = getToken();
+    // Optimistically update local state
+    setLogs(prev => [...prev.filter(l => l.date !== todayStr()), entry]);
+    try {
+      await fetch(`${API_URL}/workouts/log`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify(entry)
+      });
+    } catch (err) {
+      console.error("Failed to save workout to server:", err);
+    }
+    setReps({pushups:0,pullups:0,situps:0,squats:0});
+    setPage("home");
+    showToast("Workout logged! 💪");
+  };
+
   if (!isAuth) {
     return <AuthPage setAuthState={setIsAuth} showToast={showToast} />;
   }
@@ -357,18 +454,23 @@ function App() {
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:C.bg}}>
       <div style={{width:390,height:844,background:C.bg,borderRadius:44,overflow:"hidden",position:"relative",boxShadow:"0 36px 90px rgba(0,0,0,0.9)"}}>
         {toast && <Toast msg={toast.msg} type={toast.type}/>}
-        
-        <div style={{padding:"20px"}}>
-          <HomePage logs={logs} showToast={showToast} setPage={setPage} />
+
+        <div style={{position:"absolute",top:0,bottom:60,left:0,right:0,overflowY:"auto",padding:"20px 0 0"}}>
+          {page==="home" && <HomePage logs={logs} setPage={setPage} />}
+          {page==="log"  && <LogPage logs={logs} reps={reps} setReps={setReps} onSubmit={handleLog} />}
         </div>
 
-        <div style={{position:"absolute",bottom:20,left:20,right:20}}>
+        <div style={{position:"absolute",bottom:0,left:0,right:0,display:"flex",gap:0,background:C.surf,borderTop:`1px solid ${C.border}`}}>
+          {[{id:"home",label:"Home"},{id:"log",label:"Log"}].map(t=>(
+            <button key={t.id} onClick={()=>setPage(t.id)} style={{
+              flex:1,border:"none",background:"none",cursor:"pointer",padding:"12px 8px",
+              color:page===t.id?C.green:C.muted,fontWeight:page===t.id?700:500,fontSize:13
+            }}>{t.label}</button>
+          ))}
           <button onClick={handleLogout} style={{
-            width:"100%",border:"none",borderRadius:12,padding:"12px",fontSize:14,
-            fontWeight:700,background:C.danger,color:"#fff",cursor:"pointer"
-          }}>
-            Logout
-          </button>
+            flex:1,border:"none",cursor:"pointer",padding:"12px 8px",fontSize:13,
+            fontWeight:600,background:"none",color:C.danger
+          }}>Logout</button>
         </div>
       </div>
     </div>
