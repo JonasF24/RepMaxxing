@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const User = require('../models/User');
+const Workout = require('../models/Workout');
 const auth = require('../middleware/auth');
 const { sendVerificationEmail, sendVerificationSMS } = require('../utils/email');
 
@@ -124,11 +125,21 @@ router.post('/login', authLimiter, async (req, res) => {
 // Profile endpoint — protected by JWT middleware
 router.get('/profile', profileLimiter, auth, async (req, res) => {
     try {
-        const user = await User.findById(req.user.id).populate('workoutLogs');
+        const user = await User.findById(req.user.id);
         if (!user) {
             return res.status(404).json({ msg: 'User not found' });
         }
-        return res.status(200).json({ username: user.email || user.phone, logs: user.workoutLogs || [] });
+        const workouts = await Workout.find({ userId: req.user.id }).sort({ date: 1 });
+        return res.status(200).json({
+            username: user.email || user.phone,
+            logs: workouts.map(w => ({
+                date:    w.date,
+                pushups: w.pushups || 0,
+                pullups: w.pullups || 0,
+                situps:  w.situps  || 0,
+                squats:  w.squats  || 0,
+            })),
+        });
     } catch (err) {
         console.error(err);
         return res.status(500).json({ msg: 'Server error' });
