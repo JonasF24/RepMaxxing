@@ -1,12 +1,17 @@
 const mongoose = require('mongoose');
 
+const friendRequestSchema = new mongoose.Schema({
+    from: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    status: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
+    createdAt: { type: Date, default: Date.now },
+}, { _id: true });
+
 const userSchema = new mongoose.Schema({
-    // Either email or phone is required (validated in the route layer)
-    email:            { type: String, unique: true, sparse: true },
-    phone:            { type: String, unique: true, sparse: true },
+    username:         { type: String, required: true, unique: true, trim: true, lowercase: true },
+    email:            { type: String, unique: true, sparse: true, trim: true, lowercase: true },
     password:         { type: String, required: true },
-    verificationCode: { type: String },
-    verified:         { type: Boolean, default: false },
+    friends:          [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    friendRequests:   [friendRequestSchema],
     workoutLogs:      [{ type: mongoose.Schema.Types.ObjectId, ref: 'Workout' }],
 }, { timestamps: true });
 
