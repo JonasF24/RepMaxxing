@@ -226,9 +226,23 @@ router.post('/friends/request', profileLimiter, auth, async (req, res) => {
             return res.status(400).json({ msg: 'Request already sent' });
         }
 
-        receiver.friendRequests.push({ from: sender._id, status: 'pending' });
-        await receiver.save();
+        const updateResult = await User.updateOne(
+            {
+                _id: receiver._id,
+                friendRequests: {
+                    $not: {
+                        $elemMatch: { from: sender._id, status: 'pending' }
+                    }
+                }
+            },
+            {
+                $addToSet: { friendRequests: { from: sender._id, status: 'pending' } }
+            }
+        );
 
+        if (updateResult.modifiedCount === 0) {
+            return res.status(400).json({ msg: 'Request already sent' });
+        }
         return res.status(201).json({ msg: 'Friend request sent' });
     } catch (err) {
         console.error(err);
@@ -318,40 +332,74 @@ router.get('/friends', profileLimiter, auth, async (req, res) => {
 
 router.get('/leaderboard', profileLimiter, auth, async (_req, res) => {
     try {
-        const users = await User.find({}).select('username');
-        const workouts = await Workout.find({}).sort({ date: 1 });
+        // Use MongoDB aggregation to compute per-user summaries and join usernames,
+        // instead of loading all users and workouts and aggregating in Node.
+        const leaderboardData = await Workout.aggregate([
+            // Ensure workouts are in chronological order for streak/progress calculations.
+            { $sort: { date: 1 } },
+            {
+                $group: {
+                    _id: '$userId',
+                    workouts: {
+                        $push: {
+                            date: '$date',
+                            pushups: '$pushups',
+                            pullups: '$pullups',
+                            situps: '$situps',
+                            squats: '$squats',
+                        },
+                    },
+                    totalReps: {
+                        $sum: {
+                            $add: [
+                                { $ifNull: ['$pushups', 0] },
+                                { $ifNull: ['$pullups', 0] },
+                                { $ifNull: ['$situps', 0] },
+                                { $ifNull: ['$squats', 0] },
+                            ],
+                        },
+                    },
+                    maxPushups: { $max: { $ifNull: ['$pushups', 0] } },
+                    maxPullups: { $max: { $ifNull: ['$pullups', 0] } },
+                    maxSitups: { $max: { $ifNull: ['$situps', 0] } },
+                    maxSquats: { $max: { $ifNull: ['$squats', 0] } },
+                },
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'user',
+                },
+            },
+            { $unwind: '$user' },
+            {
+                $project: {
+                    _id: 0,
+                    username: '$user.username',
+                    workouts: 1,
+                    totalReps: 1,
+                    prs: {
+                        pushups: '$maxPushups',
+                        pullups: '$maxPullups',
+                        situps: '$maxSitups',
+                        squats: '$maxSquats',
+                    },
+                },
+            },
+        ]);
 
-        const byUser = {};
-        users.forEach(user => {
-            byUser[user._id.toString()] = {
-                username: user.username,
-                workouts: [],
-            };
-        });
-
-        workouts.forEach(w => {
-            const key = w.userId.toString();
-            if (byUser[key]) byUser[key].workouts.push(w);
-        });
-
-        const rows = Object.values(byUser).map(entry => {
-            const prs = { pushups: 0, pullups: 0, situps: 0, squats: 0 };
-            let totalReps = 0;
-
-            entry.workouts.forEach(w => {
-                prs.pushups = Math.max(prs.pushups, w.pushups || 0);
-                prs.pullups = Math.max(prs.pullups, w.pullups || 0);
-                prs.situps = Math.max(prs.situps, w.situps || 0);
-                prs.squats = Math.max(prs.squats, w.squats || 0);
-                totalReps += (w.pushups || 0) + (w.pullups || 0) + (w.situps || 0) + (w.squats || 0);
-            });
+        const rows = leaderboardData.map(entry => {
+            const progressScore = calculateProgressScore(entry.workouts);
+            const maxStreak = calculateMaxStreak(entry.workouts);
 
             return {
                 username: entry.username,
-                totalReps,
-                progressScore: calculateProgressScore(entry.workouts),
-                maxStreak: calculateMaxStreak(entry.workouts),
-                prs,
+                totalReps: entry.totalReps,
+                progressScore,
+                maxStreak,
+                prs: entry.prs,
             };
         });
 

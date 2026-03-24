@@ -76,7 +76,66 @@
       color: #fff;
       padding: 10px 14px;
       border-radius: 8px;
-      z-index: 999;
+      z-index: 9999;
+      max-width: 360px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .account-menu-wrap { position: relative; }
+    .account-menu {
+      position: absolute;
+      right: 0;
+      top: 42px;
+      width: 220px;
+      background: #2a0f0f;
+      border: 1px solid #7f1d1d;
+      border-radius: 12px;
+      padding: 8px;
+      display: grid;
+      gap: 6px;
+      z-index: 20;
+    }
+    .menu-item {
+      width: 100%;
+      text-align: left;
+      border: 1px solid #7f1d1d;
+      background: #220c0c;
+      color: #fecaca;
+      border-radius: 8px;
+      padding: 8px 10px;
+      cursor: pointer;
+    }
+    .hero {
+      padding: 24px;
+      border-radius: 14px;
+      background: linear-gradient(145deg, #3a0f0f, #250b0b);
+      border: 1px solid #991b1b;
+      margin-bottom: 14px;
+    }
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9998;
+      padding: 20px;
+    }
+    .modal {
+      width: 100%;
+      max-width: 480px;
+      background: #2a0f0f;
+      border: 1px solid #7f1d1d;
+      border-radius: 14px;
+      padding: 16px;
+    }
+    @media (max-width: 900px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -95,8 +154,7 @@
     const getToken = () => localStorage.getItem(tokenKey);
     const setToken = token => localStorage.setItem(tokenKey, token);
     const clearToken = () => localStorage.removeItem(tokenKey);
-
-    function todayStr() { return new Date().toISOString().split("T")[0]; }
+    const todayStr = () => new Date().toISOString().split("T")[0];
 
     async function api(path, method = "GET", body) {
       const token = getToken();
@@ -108,13 +166,19 @@
         },
         ...(body ? { body: JSON.stringify(body) } : {}),
       });
+
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.msg || "Request failed");
+      if (!res.ok) {
+        const errorMessage =
+          (data && (data.msg || data.message || data.error)) ||
+          "Request failed";
+        throw new Error(errorMessage);
+      }
       return data;
     }
 
-    function AuthPage({ onAuth, toast }) {
-      const [mode, setMode] = useState("login");
+    function AuthModal({ isOpen, defaultMode = "login", onClose, onSuccess, toast }) {
+      const [mode, setMode] = useState(defaultMode);
       const [identity, setIdentity] = useState("");
       const [username, setUsername] = useState("");
       const [email, setEmail] = useState("");
@@ -122,31 +186,67 @@
       const [passwordConfirm, setPasswordConfirm] = useState("");
       const [loading, setLoading] = useState(false);
 
-      const submit = async () => {
+      useEffect(() => { setMode(defaultMode); }, [defaultMode, isOpen]);
+
+      if (!isOpen) return null;
+
+      const login = async () => {
+        if (!identity.trim()) {
+          toast("Please enter username or email.", true);
+          return;
+        }
+        if (!password) {
+          toast("Please enter password.", true);
+          return;
+        }
+
         setLoading(true);
         try {
-          if (mode === "signup") {
-            const data = await api("/auth/signup", "POST", { username, email, password, passwordConfirm });
-            setToken(data.token);
-            onAuth(data.user);
-            toast("Account created successfully");
-          } else {
-            const data = await api("/auth/login", "POST", { identity, password });
-            setToken(data.token);
-            onAuth(data.user);
-            toast("Welcome back");
-          }
+          const data = await api("/auth/login", "POST", { identity, password });
+          setToken(data.token);
+          await onSuccess();
+          toast("Signed in successfully.");
+          onClose();
         } catch (err) {
-          toast(err.message, true);
+          toast(`Login failed: ${err.message}`, true);
+        }
+        setLoading(false);
+      };
+
+      const signup = async () => {
+        if (username.trim().length < 3) {
+          toast("Username must be at least 3 characters.", true);
+          return;
+        }
+        if (password.length < 8) {
+          toast("Password must be at least 8 characters.", true);
+          return;
+        }
+        if (password !== passwordConfirm) {
+          toast("Passwords do not match.", true);
+          return;
+        }
+
+        setLoading(true);
+        try {
+          const data = await api("/auth/signup", "POST", { username, email, password, passwordConfirm });
+          setToken(data.token);
+          await onSuccess();
+          toast("Account created and signed in.");
+          onClose();
+        } catch (err) {
+          toast(`Signup failed: ${err.message}`, true);
         }
         setLoading(false);
       };
 
       return (
-        <div className="container" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div className="card" style={{ width: "100%", maxWidth: 480 }}>
-            <h1 style={{ marginBottom: 8 }}>RepMax Website</h1>
-            <p className="muted" style={{ marginBottom: 16 }}>Web-first experience for tracking reps, friends, and rankings.</p>
+        <div className="modal-backdrop" onClick={onClose}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <h2>{mode === "login" ? "Sign In" : "Create Account"}</h2>
+              <button className="btn secondary" onClick={onClose}>Close</button>
+            </div>
 
             <div className="nav" style={{ marginTop: 0 }}>
               <button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Sign In</button>
@@ -159,23 +259,21 @@
                 <input className="field" placeholder="Email (optional)" value={email} onChange={e => setEmail(e.target.value)} />
                 <input className="field" placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
                 <input className="field" placeholder="Confirm password" type="password" value={passwordConfirm} onChange={e => setPasswordConfirm(e.target.value)} />
+                <button className="btn" onClick={signup} disabled={loading}>{loading ? "Creating..." : "Create Account"}</button>
               </div>
             ) : (
               <div style={{ display: "grid", gap: 10 }}>
                 <input className="field" placeholder="Username or email" value={identity} onChange={e => setIdentity(e.target.value)} />
                 <input className="field" placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+                <button className="btn" onClick={login} disabled={loading}>{loading ? "Signing in..." : "Sign In"}</button>
               </div>
             )}
-
-            <button className="btn" style={{ width: "100%", marginTop: 14 }} disabled={loading} onClick={submit}>
-              {loading ? "Please wait..." : mode === "signup" ? "Create Account" : "Sign In"}
-            </button>
           </div>
         </div>
       );
     }
 
-    function DailyLog({ logs, onLogged, toast }) {
+    function DailyLog({ logs, onLogged, toast, canSave }) {
       const existing = logs.find(l => l.date === todayStr());
       const [form, setForm] = useState(existing || { date: todayStr(), pushups: 0, pullups: 0, situps: 0, squats: 0 });
 
@@ -185,20 +283,30 @@
       }, [logs]);
 
       const save = async () => {
+        if (!canSave) {
+          toast("Please sign in to save your workout.", true);
+          return;
+        }
         try {
-          const payload = { ...form, pushups: Number(form.pushups) || 0, pullups: Number(form.pullups) || 0, situps: Number(form.situps) || 0, squats: Number(form.squats) || 0 };
+          const payload = {
+            ...form,
+            pushups: Number(form.pushups) || 0,
+            pullups: Number(form.pullups) || 0,
+            situps: Number(form.situps) || 0,
+            squats: Number(form.squats) || 0,
+          };
           await api("/workouts/log", "POST", payload);
           onLogged(payload);
-          toast("Daily log saved");
+          toast("Daily log saved.");
         } catch (err) {
-          toast(err.message, true);
+          toast(`Could not save log: ${err.message}`, true);
         }
       };
 
       return (
         <div className="card">
           <h2>Daily Entry</h2>
-          <p className="muted" style={{ marginBottom: 12 }}>Simple form for {todayStr()}.</p>
+          <p className="muted" style={{ marginBottom: 12 }}>Fast data entry for {todayStr()}.</p>
           <div className="grid-2">
             {EXES.map(ex => (
               <label key={ex} style={{ display: "grid", gap: 6 }}>
@@ -212,7 +320,7 @@
       );
     }
 
-    function Dashboard({ logs, onLogged, toast }) {
+    function Dashboard({ logs, onLogged, toast, canSave }) {
       const totalReps = logs.reduce((sum, l) => sum + EXES.reduce((s, ex) => s + (l[ex] || 0), 0), 0);
       const maxes = useMemo(() => {
         const m = { pushups: 0, pullups: 0, situps: 0, squats: 0 };
@@ -222,13 +330,18 @@
 
       return (
         <div style={{ display: "grid", gap: 14 }}>
+          <div className="hero">
+            <h2 style={{ marginBottom: 6 }}>RepMax Web Platform</h2>
+            <p className="muted">Website access is open to everyone. Sign in from the top-right account menu to save data, add friends, and compete.</p>
+          </div>
+
           <div className="grid-3">
             <div className="card"><h3>Total Workout Days</h3><div style={{ fontSize: 28, fontWeight: 800 }}>{logs.length}</div></div>
             <div className="card"><h3>Total Reps</h3><div style={{ fontSize: 28, fontWeight: 800 }}>{totalReps}</div></div>
             <div className="card"><h3>Best Pushups</h3><div style={{ fontSize: 28, fontWeight: 800 }}>{maxes.pushups}</div></div>
           </div>
 
-          <DailyLog logs={logs} onLogged={onLogged} toast={toast} />
+          <DailyLog logs={logs} onLogged={onLogged} toast={toast} canSave={canSave} />
 
           <div className="card">
             <h2>Recent Entries</h2>
@@ -237,7 +350,7 @@
                 <tr><th>Date</th><th>Pushups</th><th>Pullups</th><th>Situps</th><th>Squats</th><th>Total</th></tr>
               </thead>
               <tbody>
-                {[...logs].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 14).map((l, i) => (
+                {[...logs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 14).map((l, i) => (
                   <tr key={i}>
                     <td>{l.date}</td>
                     <td>{l.pushups || 0}</td>
@@ -254,13 +367,14 @@
       );
     }
 
-    function FriendsPage({ toast }) {
+    function FriendsPage({ toast, isAuthed }) {
       const [q, setQ] = useState("");
       const [results, setResults] = useState([]);
       const [requests, setRequests] = useState([]);
       const [friends, setFriends] = useState([]);
 
       const refresh = async () => {
+        if (!isAuthed) return;
         try {
           const [reqs, fs] = await Promise.all([api("/auth/friends/requests"), api("/auth/friends")]);
           setRequests(reqs);
@@ -270,7 +384,11 @@
         }
       };
 
-      useEffect(() => { refresh(); }, []);
+      useEffect(() => { refresh(); }, [isAuthed]);
+
+      if (!isAuthed) {
+        return <div className="card"><h2>Friends</h2><p className="muted">Sign in from the account menu to access friend requests and your network.</p></div>;
+      }
 
       const search = async () => {
         try {
@@ -351,11 +469,17 @@
       );
     }
 
-    function LeaderboardPage({ toast }) {
+    function LeaderboardPage({ toast, isAuthed }) {
       const [boards, setBoards] = useState(null);
+
       useEffect(() => {
+        if (!isAuthed) return;
         api("/auth/leaderboard").then(setBoards).catch(err => toast(err.message, true));
-      }, []);
+      }, [isAuthed]);
+
+      if (!isAuthed) {
+        return <div className="card"><h2>Leaderboard</h2><p className="muted">Sign in from the account menu to view all leaderboard metrics.</p></div>;
+      }
 
       const Section = ({ title, data, value }) => (
         <div className="card">
@@ -401,29 +525,40 @@
       const [logs, setLogs] = useState([]);
       const [page, setPage] = useState("dashboard");
       const [toastState, setToastState] = useState(null);
+      const [accountOpen, setAccountOpen] = useState(false);
+      const [authModal, setAuthModal] = useState({ open: false, mode: "login" });
 
       const toast = (msg, isError = false) => {
         setToastState({ msg, isError });
-        setTimeout(() => setToastState(null), 2800);
+        setTimeout(() => setToastState(null), 3200);
       };
 
       const syncProfile = async () => {
+        const token = getToken();
+        if (!token) {
+          setUser(null);
+          setLogs([]);
+          return;
+        }
+
         try {
           const data = await api("/auth/profile");
           setUser({ username: data.username, email: data.email || "" });
           setLogs(data.logs || []);
-        } catch {
+        } catch (err) {
           clearToken();
           setUser(null);
+          setLogs([]);
+          toast(`Session ended: ${err.message}`, true);
         }
       };
 
-      useEffect(() => { if (getToken()) syncProfile(); }, []);
+      useEffect(() => { syncProfile(); }, []);
 
       const handleLogged = entry => {
         setLogs(prev => {
           const next = [...prev.filter(l => l.date !== entry.date), entry];
-          return next.sort((a,b) => a.date.localeCompare(b.date));
+          return next.sort((a, b) => a.date.localeCompare(b.date));
         });
       };
 
@@ -431,20 +566,42 @@
         clearToken();
         setUser(null);
         setLogs([]);
+        setAccountOpen(false);
+        toast("Signed out.");
       };
-
-      if (!user) return <AuthPage onAuth={() => syncProfile()} toast={toast} />;
 
       return (
         <div className="container">
           {toastState && <div className="toast" style={{ background: toastState.isError ? "#b91c1c" : "#dc2626" }}>{toastState.msg}</div>}
 
-          <header className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <header className="topbar card">
             <div>
               <h1>RepMax</h1>
-              <p className="muted">Welcome @{user.username}. Full website mode enabled.</p>
+              <p className="muted">Track reps daily, connect with friends, and compete on leaderboards.</p>
             </div>
-            <button className="btn secondary" onClick={logout}>Sign Out</button>
+
+            <div className="account-menu-wrap">
+              <button className="btn secondary" onClick={() => setAccountOpen(v => !v)}>
+                {user ? `@${user.username}` : "Account"} ▾
+              </button>
+              {accountOpen && (
+                <div className="account-menu">
+                  {user ? (
+                    <>
+                      <button className="menu-item" onClick={() => { setPage("dashboard"); setAccountOpen(false); }}>Account</button>
+                      <button className="menu-item" onClick={() => { toast("Settings page placeholder"); setAccountOpen(false); }}>Settings</button>
+                      <button className="menu-item" onClick={logout}>Logout</button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="menu-item" onClick={() => { setAuthModal({ open: true, mode: "login" }); setAccountOpen(false); }}>Sign In</button>
+                      <button className="menu-item" onClick={() => { setAuthModal({ open: true, mode: "signup" }); setAccountOpen(false); }}>Create Account</button>
+                      <button className="menu-item" onClick={() => { toast("Settings available after login", true); setAccountOpen(false); }}>Settings</button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </header>
 
           <div className="nav">
@@ -453,9 +610,17 @@
             <button className={page === "leaderboard" ? "active" : ""} onClick={() => setPage("leaderboard")}>Leaderboard</button>
           </div>
 
-          {page === "dashboard" && <Dashboard logs={logs} onLogged={handleLogged} toast={toast} />}
-          {page === "friends" && <FriendsPage toast={toast} />}
-          {page === "leaderboard" && <LeaderboardPage toast={toast} />}
+          {page === "dashboard" && <Dashboard logs={logs} onLogged={handleLogged} toast={toast} canSave={!!user} />}
+          {page === "friends" && <FriendsPage toast={toast} isAuthed={!!user} />}
+          {page === "leaderboard" && <LeaderboardPage toast={toast} isAuthed={!!user} />}
+
+          <AuthModal
+            isOpen={authModal.open}
+            defaultMode={authModal.mode}
+            onClose={() => setAuthModal({ open: false, mode: "login" })}
+            onSuccess={syncProfile}
+            toast={toast}
+          />
         </div>
       );
     }
