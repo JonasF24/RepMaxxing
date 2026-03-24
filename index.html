@@ -169,7 +169,10 @@
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.msg || "Request failed");
+        const errorMessage =
+          (data && (data.msg || data.message || data.error)) ||
+          "Request failed";
+        throw new Error(errorMessage);
       }
       return data;
     }
