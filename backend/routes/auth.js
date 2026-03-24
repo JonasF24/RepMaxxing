@@ -176,9 +176,11 @@ router.get('/users/search', profileLimiter, auth, async (req, res) => {
         return res.status(200).json([]);
     }
 
+    const escapedQ = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
     try {
         const users = await User.find({
-            username: { $regex: q, $options: 'i' },
+            username: { $regex: `^${escapedQ}`, $options: 'i' },
             _id: { $ne: req.user.id },
         })
         .select('username friends friendRequests')
