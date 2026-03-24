@@ -226,9 +226,23 @@ router.post('/friends/request', profileLimiter, auth, async (req, res) => {
             return res.status(400).json({ msg: 'Request already sent' });
         }
 
-        receiver.friendRequests.push({ from: sender._id, status: 'pending' });
-        await receiver.save();
+        const updateResult = await User.updateOne(
+            {
+                _id: receiver._id,
+                friendRequests: {
+                    $not: {
+                        $elemMatch: { from: sender._id, status: 'pending' }
+                    }
+                }
+            },
+            {
+                $addToSet: { friendRequests: { from: sender._id, status: 'pending' } }
+            }
+        );
 
+        if (updateResult.modifiedCount === 0) {
+            return res.status(400).json({ msg: 'Request already sent' });
+        }
         return res.status(201).json({ msg: 'Friend request sent' });
     } catch (err) {
         console.error(err);
