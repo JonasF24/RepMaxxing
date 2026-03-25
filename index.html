@@ -550,7 +550,8 @@
 const { useState, useEffect, useMemo, useCallback, useRef } = React;
 
 /* ── Config ────────────────────────────────────────────── */
-const API_URL = (window.REPMAX_API_URL || "").replace(/\/$/, "") || null;
+const getStoredApiUrl = () => { try { return localStorage.getItem("repmax_api_url") || ""; } catch { return ""; } };
+const API_URL = (window.REPMAX_API_URL || getStoredApiUrl()).replace(/\/$/, "") || null;
 const EXES = [
   { id:"pushups", label:"Push Ups",  emoji:"💪", color:"#22c55e", badge:"badge-green"  },
   { id:"pullups", label:"Pull Ups",  emoji:"⬆️", color:"#a855f7", badge:"badge-purple" },
@@ -687,6 +688,16 @@ function AuthModal({ defaultTab = "login", onClose, onSuccess, toast }) {
   // Check API connectivity
   const noApi = !API_URL;
 
+  // Backend URL configuration state (shown when noApi)
+  const [apiUrlInput, setApiUrlInput] = useState("");
+  const handleSaveApiUrl = () => {
+    const trimmed = apiUrlInput.trim().replace(/\/$/, "");
+    if (!trimmed) { toast("Enter a valid backend URL.", "error"); return; }
+    try { const u = new URL(trimmed); if (u.protocol !== "http:" && u.protocol !== "https:") throw new Error(); } catch { toast("Enter a valid URL (e.g. https://my-api.example.com).", "error"); return; }
+    try { localStorage.setItem("repmax_api_url", trimmed); } catch { toast("Could not save URL.", "error"); return; }
+    window.location.reload();
+  };
+
   const handleLogin = async () => {
     if (noApi) { toast("No backend connected. Configure REPMAX_API_URL.", "error"); return; }
     const errs = validateLogin();
@@ -744,9 +755,24 @@ function AuthModal({ defaultTab = "login", onClose, onSuccess, toast }) {
         </div>
 
         {noApi && (
-          <div className="alert alert-warn mb-16">
-            <span>⚠</span>
-            <span>Backend not configured. Set <code>window.REPMAX_API_URL</code> to enable accounts.</span>
+          <div className="alert alert-warn mb-16" style={{flexDirection:"column",alignItems:"stretch",gap:10}}>
+            <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
+              <span>⚠</span>
+              <span>Backend not configured. Enter your backend URL below to enable accounts.</span>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <input
+                className="field-input"
+                type="url"
+                placeholder="https://your-api.example.com"
+                value={apiUrlInput}
+                onChange={e=>setApiUrlInput(e.target.value)}
+                onKeyDown={e=>{ if (e.key==="Enter") handleSaveApiUrl(); }}
+                style={{flex:1,fontSize:13}}
+                aria-label="Backend API URL"
+              />
+              <button className="btn btn-primary" onClick={handleSaveApiUrl} aria-label="Save backend URL and reload page" style={{whiteSpace:"nowrap",padding:"0 14px"}}>Save &amp; Reload</button>
+            </div>
           </div>
         )}
 
