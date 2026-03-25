@@ -1,0 +1,1486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="theme-color" content="#0A0E1A" />
+  <meta name="description" content="RepMax — Track your bodyweight max reps daily. Streaks, XP, friends, and leaderboards." />
+  <title>RepMax — Track Your Max Reps</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:       #080C18;
+      --bg2:      #0D1220;
+      --surf:     #111827;
+      --surf2:    #1a2236;
+      --surf3:    #1f2a40;
+      --border:   #1e2d45;
+      --border2:  #253550;
+      --text:     #f1f5f9;
+      --text2:    #94a3b8;
+      --text3:    #64748b;
+      --green:    #22c55e;
+      --green2:   #16a34a;
+      --blue:     #3b82f6;
+      --blue2:    #1d4ed8;
+      --purple:   #a855f7;
+      --orange:   #f97316;
+      --gold:     #eab308;
+      --red:      #ef4444;
+      --radius:   14px;
+      --radius-lg:20px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+    button, input, select, textarea { font-family: inherit; }
+    button { cursor: pointer; }
+    input { color: var(--text); }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg2); }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
+    img { max-width: 100%; }
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    ::selection { background: #3b82f640; }
+
+    /* ── Layout ── */
+    .shell { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+
+    /* ── Topbar ── */
+    .topbar {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(8,12,24,0.92);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+    }
+    .topbar-inner {
+      max-width: 1180px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 64px; gap: 16px;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 20px; font-weight: 900; color: var(--text);
+      text-decoration: none;
+    }
+    .logo-badge {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--green2), var(--green));
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 16px #22c55e40;
+      font-size: 18px;
+    }
+    .topbar-nav {
+      display: flex; align-items: center; gap: 4px;
+    }
+    .topbar-nav-btn {
+      border: none; background: none; color: var(--text2);
+      padding: 8px 14px; border-radius: 10px;
+      font-size: 14px; font-weight: 600;
+      transition: all 0.15s; white-space: nowrap;
+    }
+    .topbar-nav-btn:hover { background: var(--surf); color: var(--text); }
+    .topbar-nav-btn.active { background: var(--surf); color: var(--text); }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .account-wrap { position: relative; }
+    .account-btn {
+      display: flex; align-items: center; gap: 8px;
+      border: 1px solid var(--border2);
+      background: var(--surf);
+      color: var(--text); border-radius: 10px;
+      padding: 8px 14px; font-size: 14px; font-weight: 600;
+      transition: all 0.15s; white-space: nowrap;
+    }
+    .account-btn:hover { border-color: var(--border2); background: var(--surf2); }
+    .avatar {
+      width: 26px; height: 26px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--green2), var(--blue2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 800; color: #fff; flex-shrink: 0;
+    }
+    .dropdown {
+      position: absolute; top: calc(100% + 8px); right: 0;
+      min-width: 210px;
+      background: var(--surf);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      padding: 6px;
+      box-shadow: 0 20px 60px #00000080, 0 0 0 1px #ffffff08;
+      z-index: 200;
+      animation: dropIn 0.15s ease;
+    }
+    @keyframes dropIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .dropdown-item {
+      width: 100%; text-align: left;
+      border: none; background: none;
+      color: var(--text); padding: 10px 12px;
+      border-radius: 8px; font-size: 14px; font-weight: 500;
+      display: flex; align-items: center; gap: 10px;
+      transition: background 0.12s;
+    }
+    .dropdown-item:hover { background: var(--surf2); }
+    .dropdown-item.danger { color: var(--red); }
+    .dropdown-divider { height: 1px; background: var(--border); margin: 4px 0; }
+    .dropdown-user {
+      padding: 10px 12px 6px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 4px;
+    }
+    .dropdown-user-name { font-weight: 700; font-size: 14px; }
+    .dropdown-user-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
+
+    /* ── Page content ── */
+    .page { padding: 28px 20px 60px; max-width: 1180px; margin: 0 auto; }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(135deg, var(--surf) 0%, var(--surf2) 100%);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-lg);
+      padding: 32px 36px;
+      margin-bottom: 24px;
+      position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: "";
+      position: absolute; top: -60px; right: -60px;
+      width: 280px; height: 280px; border-radius: 50%;
+      background: radial-gradient(circle, #22c55e18 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-title { font-size: 28px; font-weight: 900; margin-bottom: 8px; }
+    .hero-sub { color: var(--text2); font-size: 15px; max-width: 520px; line-height: 1.6; }
+    .hero-cta { margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      border: none; border-radius: 10px;
+      padding: 11px 20px; font-size: 14px; font-weight: 700;
+      transition: all 0.15s; white-space: nowrap;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--green2), var(--green));
+      color: #fff;
+      box-shadow: 0 4px 20px #22c55e35;
+    }
+    .btn-primary:hover:not(:disabled) { box-shadow: 0 6px 28px #22c55e55; }
+    .btn-ghost {
+      background: var(--surf); color: var(--text);
+      border: 1px solid var(--border2);
+    }
+    .btn-ghost:hover:not(:disabled) { background: var(--surf2); }
+    .btn-danger { background: #7f1d1d; color: var(--red); border: 1px solid #991b1b; }
+    .btn-danger:hover:not(:disabled) { background: #991b1b; }
+    .btn-sm { padding: 7px 14px; font-size: 13px; }
+    .btn-lg { padding: 14px 28px; font-size: 16px; border-radius: 12px; }
+    .btn-block { width: 100%; }
+    .btn-icon { width: 40px; height: 40px; padding: 0; border-radius: 10px; flex-shrink: 0; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surf);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .card-title { font-size: 14px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 14px; }
+    .card-number { font-size: 36px; font-weight: 900; line-height: 1; }
+
+    /* ── Stat grid ── */
+    .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+    @media (max-width: 800px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 480px) { .stat-grid { grid-template-columns: 1fr 1fr; } }
+    .stat-card {
+      background: var(--surf);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .stat-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .stat-label { font-size: 12px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-value { font-size: 28px; font-weight: 900; line-height: 1; }
+
+    /* ── Grid layouts ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+    @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+    /* ── Forms ── */
+    .field-group { display: flex; flex-direction: column; gap: 6px; }
+    .field-label {
+      font-size: 13px; font-weight: 600; color: var(--text2);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .field-input {
+      width: 100%;
+      background: var(--bg2);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-size: 15px; color: var(--text);
+      transition: border-color 0.15s, box-shadow 0.15s;
+      outline: none;
+    }
+    .field-input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px #3b82f622;
+    }
+    .field-input::placeholder { color: var(--text3); }
+    .field-input.error { border-color: var(--red); }
+    .field-error { font-size: 12px; color: var(--red); font-weight: 500; }
+    .field-hint  { font-size: 12px; color: var(--text3); }
+    .form-grid { display: grid; gap: 14px; }
+    .form-title { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+    .form-sub   { font-size: 14px; color: var(--text2); margin-bottom: 20px; }
+
+    /* Number stepper */
+    .stepper {
+      display: flex; align-items: center;
+      background: var(--bg2);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      overflow: hidden;
+    }
+    .stepper-btn {
+      border: none; background: none; color: var(--text2);
+      width: 44px; height: 44px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 700; flex-shrink: 0;
+      transition: background 0.12s;
+    }
+    .stepper-btn:hover { background: var(--surf3); }
+    .stepper-val {
+      flex: 1; text-align: center;
+      font-size: 22px; font-weight: 800; color: var(--text);
+      padding: 8px 0; pointer-events: none;
+    }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex; gap: 4px;
+      background: var(--surf);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 4px;
+    }
+    .tab {
+      flex: 1; border: none; background: none; color: var(--text2);
+      border-radius: 8px; padding: 8px 14px;
+      font-size: 14px; font-weight: 600;
+      transition: all 0.15s; white-space: nowrap;
+    }
+    .tab.active {
+      background: var(--bg);
+      color: var(--text);
+      box-shadow: 0 1px 4px #00000040;
+    }
+    .tab:hover:not(.active) { color: var(--text); }
+
+    /* ── Table ── */
+    .table-wrap { overflow-x: auto; margin-top: 14px; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      text-align: left; padding: 10px 14px;
+      font-size: 11px; font-weight: 700; color: var(--text3);
+      text-transform: uppercase; letter-spacing: 0.08em;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody td {
+      padding: 12px 14px;
+      font-size: 14px; color: var(--text2);
+      border-bottom: 1px solid var(--border);
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surf2); }
+    .rank { font-weight: 800; font-size: 13px; color: var(--text3); }
+    .rank-1 { color: var(--gold); }
+    .rank-2 { color: #94a3b8; }
+    .rank-3 { color: #cd7c2f; }
+    .username-cell { font-weight: 700; color: var(--text); }
+    .score-cell { font-weight: 800; font-size: 15px; color: var(--text); }
+
+    /* ── Modal ── */
+    .backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000; padding: 20px;
+      animation: fadeIn 0.15s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .modal {
+      width: 100%; max-width: 440px;
+      background: var(--surf);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      box-shadow: 0 32px 80px #00000080;
+      animation: slideUp 0.2s ease;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; }
+    .modal-close {
+      width: 32px; height: 32px; border-radius: 8px;
+      border: none; background: var(--surf2); color: var(--text2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; line-height: 1; flex-shrink: 0;
+      transition: all 0.12s;
+    }
+    .modal-close:hover { background: var(--surf3); color: var(--text); }
+
+    /* ── Toast ── */
+    .toast-wrap {
+      position: fixed; top: 20px; right: 20px; z-index: 2000;
+      display: flex; flex-direction: column; gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 14px; font-weight: 600;
+      box-shadow: 0 8px 32px #00000060;
+      animation: toastIn 0.2s ease;
+      min-width: 220px; max-width: 380px;
+      border: 1px solid transparent;
+      display: flex; align-items: center; gap: 10px;
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(20px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    .toast.success { background: #052e16; border-color: #166534; color: #86efac; }
+    .toast.error   { background: #1c0000; border-color: #991b1b; color: #fca5a5; }
+
+    /* ── Badge pills ── */
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 3px 10px; border-radius: 99px;
+      font-size: 12px; font-weight: 700;
+    }
+    .badge-green  { background: #052e16; color: var(--green); border: 1px solid #166534; }
+    .badge-blue   { background: #0c1a3b; color: var(--blue);  border: 1px solid #1e40af; }
+    .badge-purple { background: #1e0b3b; color: var(--purple);border: 1px solid #6b21a8; }
+    .badge-orange { background: #1f0b00; color: var(--orange); border: 1px solid #7c2d12; }
+    .badge-gold   { background: #1c1400; color: var(--gold);  border: 1px solid #713f12; }
+
+    /* ── Log entry card ── */
+    .ex-card {
+      background: var(--surf);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      transition: border-color 0.2s;
+    }
+    .ex-card.pr { border-color: var(--green); box-shadow: 0 0 24px #22c55e20; }
+    .ex-card-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .ex-card-info { display: flex; align-items: center; gap: 12px; }
+    .ex-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+
+    /* ── Friends ── */
+    .friend-card {
+      background: var(--surf);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .friend-info { display: flex; align-items: center; gap: 12px; }
+    .friend-avatar {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: linear-gradient(135deg, var(--green2), var(--blue2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 800; color: #fff; flex-shrink: 0;
+    }
+    .friend-name { font-weight: 700; font-size: 15px; }
+    .friend-sub  { font-size: 12px; color: var(--text3); margin-top: 2px; }
+
+    /* ── Section headers ── */
+    .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .section-title { font-size: 17px; font-weight: 800; }
+    .section-sub   { font-size: 13px; color: var(--text3); margin-top: 3px; }
+
+    /* ── Leaderboard category picker ── */
+    .lb-cats {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;
+    }
+    .lb-cat {
+      border: 1px solid var(--border2); background: var(--surf);
+      color: var(--text2); border-radius: 99px;
+      padding: 7px 16px; font-size: 13px; font-weight: 600;
+      transition: all 0.15s;
+    }
+    .lb-cat.active {
+      background: linear-gradient(135deg, var(--green2), var(--green));
+      color: #fff; border-color: transparent;
+      box-shadow: 0 4px 14px #22c55e30;
+    }
+    .lb-cat:hover:not(.active) { border-color: var(--green); color: var(--text); }
+
+    /* ── Empty states ── */
+    .empty {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 48px 24px; gap: 12px; text-align: center;
+    }
+    .empty-icon { font-size: 40px; line-height: 1; }
+    .empty-title { font-size: 17px; font-weight: 700; }
+    .empty-sub { font-size: 14px; color: var(--text3); max-width: 280px; }
+
+    /* ── Alert banner ── */
+    .alert {
+      padding: 12px 16px; border-radius: 10px;
+      font-size: 14px; font-weight: 500;
+      display: flex; align-items: flex-start; gap: 10px;
+    }
+    .alert-warn { background: #1c1400; border: 1px solid #713f12; color: #fcd34d; }
+    .alert-info { background: #0c1a3b; border: 1px solid #1e40af; color: #93c5fd; }
+    .alert-success { background: #052e16; border: 1px solid #166534; color: #86efac; }
+
+    /* ── Dividers ── */
+    .or-divider {
+      display: flex; align-items: center; gap: 12px;
+      color: var(--text3); font-size: 13px;
+    }
+    .or-divider::before, .or-divider::after {
+      content: ""; flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* ── Glow separator line ── */
+    .glow-sep { height: 1px; background: linear-gradient(90deg, transparent, var(--green) 50%, transparent); margin: 28px 0; opacity: 0.25; }
+
+    /* ── Responsive topbar ── */
+    @media (max-width: 640px) {
+      .topbar-nav { display: none; }
+      .mobile-menu-btn { display: flex !important; }
+      .mobile-nav {
+        position: fixed; inset: 64px 0 0;
+        background: var(--bg);
+        display: flex; flex-direction: column; gap: 4px;
+        padding: 16px; z-index: 90;
+      }
+      .mobile-nav-btn {
+        border: 1px solid var(--border); background: var(--surf);
+        color: var(--text); padding: 14px 16px; border-radius: 12px;
+        font-size: 15px; font-weight: 600; text-align: left;
+        transition: background 0.12s;
+      }
+      .mobile-nav-btn:hover { background: var(--surf2); }
+      .mobile-nav-btn.active { border-color: var(--green); color: var(--green); }
+    }
+    .mobile-menu-btn {
+      display: none; border: 1px solid var(--border);
+      background: var(--surf); color: var(--text); border-radius: 8px;
+      width: 38px; height: 38px; align-items: center; justify-content: center; font-size: 18px;
+    }
+
+    /* misc utilities */
+    .gap-4  { gap: 4px; }
+    .gap-8  { gap: 8px; }
+    .gap-12 { gap: 12px; }
+    .gap-16 { gap: 16px; }
+    .gap-20 { gap: 20px; }
+    .flex   { display: flex; }
+    .flex-col { display: flex; flex-direction: column; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .mt-4  { margin-top: 4px; }
+    .mt-8  { margin-top: 8px; }
+    .mt-12 { margin-top: 12px; }
+    .mt-16 { margin-top: 16px; }
+    .mt-20 { margin-top: 20px; }
+    .mt-24 { margin-top: 24px; }
+    .mb-12 { margin-bottom: 12px; }
+    .mb-16 { margin-bottom: 16px; }
+    .mb-20 { margin-bottom: 20px; }
+    .mb-24 { margin-bottom: 24px; }
+    .text-muted   { color: var(--text2); }
+    .text-faint   { color: var(--text3); }
+    .text-sm      { font-size: 13px; }
+    .text-xs      { font-size: 11px; }
+    .font-bold    { font-weight: 700; }
+    .font-black   { font-weight: 900; }
+    .w-full       { width: 100%; }
+    .spinner {
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      animation: spin 0.6s linear infinite; flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useMemo, useCallback, useRef } = React;
+
+/* ── Config ────────────────────────────────────────────── */
+const API_URL = (window.REPMAX_API_URL || "").replace(/\/$/, "") || null;
+const EXES = [
+  { id:"pushups", label:"Push Ups",  emoji:"💪", color:"#22c55e", badge:"badge-green"  },
+  { id:"pullups", label:"Pull Ups",  emoji:"⬆️", color:"#a855f7", badge:"badge-purple" },
+  { id:"situps",  label:"Sit Ups",   emoji:"🔄", color:"#3b82f6", badge:"badge-blue"   },
+  { id:"squats",  label:"Squats",    emoji:"🦵", color:"#f97316", badge:"badge-orange" },
+];
+
+/* ── Auth helpers ─────────────────────────────────────── */
+const TOKEN_KEY = "repmax_token";
+const getToken  = () => { try { return localStorage.getItem(TOKEN_KEY); } catch { return null; } };
+const setToken  = t  => { try { localStorage.setItem(TOKEN_KEY, t); } catch {} };
+const clearToken= () => { try { localStorage.removeItem(TOKEN_KEY); } catch {} };
+const todayStr  = () => new Date().toISOString().split("T")[0];
+
+async function api(path, method = "GET", body) {
+  if (!API_URL) throw new Error("no_api");
+  const token = getToken();
+  const res = await fetch(`${API_URL}${path}`, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.msg || data.message || data.error || "Request failed");
+  return data;
+}
+
+/* ── SVG Icons ─────────────────────────────────────────── */
+const Icon = {
+  Logo:  ()=><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 6.5S5 7.5 5 10s2 4.5 4 5.5c1 .5 2 2 2 3.5 0 0 1-1.5 1-3.5 0-1.5-.5-3-2-4"/><circle cx="15.5" cy="9.5" r="4" strokeWidth="2"/></svg>,
+  User:  ()=><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>,
+  Out:   ()=><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
+  Check: ()=><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+  Eye:   ({on})=> on
+    ? <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+    : <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>,
+  Caret: ()=><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>,
+  Ham:   ()=><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>,
+  X:     ()=><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+  Trophy:()=><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="8 21 12 17 16 21"/><line x1="12" y1="17" x2="12" y2="11"/><path d="M7 4h10l1 7H6z"/><path d="M6 4c0 0-2 1-2 4h4"/><path d="M18 4c0 0 2 1 2 4h-4"/></svg>,
+  Search:()=><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+  Plus:  ()=><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+};
+
+/* ── Toast hook ─────────────────────────────────────────── */
+function useToast() {
+  const [toasts, setToasts] = useState([]);
+  const add = useCallback((msg, type = "success") => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, msg, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+  }, []);
+  return { toasts, toast: add };
+}
+
+function ToastContainer({ toasts }) {
+  return (
+    <div className="toast-wrap">
+      {toasts.map(t => (
+        <div key={t.id} className={`toast ${t.type}`}>
+          <span>{t.type === "success" ? "✓" : "!"}</span>
+          {t.msg}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Password input ─────────────────────────────────────── */
+function PasswordInput({ value, onChange, placeholder = "Password", id, autoComplete }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div style={{ position: "relative" }}>
+      <input
+        id={id}
+        type={show ? "text" : "password"}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        className="field-input"
+        style={{ paddingRight: 44 }}
+      />
+      <button
+        type="button"
+        onClick={() => setShow(s => !s)}
+        style={{
+          position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+          border: "none", background: "none", color: "var(--text3)", cursor: "pointer",
+          display: "flex", alignItems: "center",
+        }}
+        aria-label={show ? "Hide password" : "Show password"}
+      >
+        <Icon.Eye on={show} />
+      </button>
+    </div>
+  );
+}
+
+/* ── Auth Modal ─────────────────────────────────────────── */
+function AuthModal({ defaultTab = "login", onClose, onSuccess, toast }) {
+  const [tab, setTab]       = useState(defaultTab);
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  // Login state
+  const [identity, setIdentity] = useState("");
+  const [loginPw, setLoginPw]   = useState("");
+
+  // Signup state
+  const [username, setUsername] = useState("");
+  const [email, setEmail]       = useState("");
+  const [signupPw, setSignupPw] = useState("");
+  const [confirm, setConfirm]   = useState("");
+
+  // Validate then call — returns error map or null
+  function validateSignup() {
+    const errs = {};
+    if (!username.trim() || username.trim().length < 3) errs.username = "Must be at least 3 characters";
+    if (signupPw.length < 8) errs.signupPw = "Must be at least 8 characters";
+    if (signupPw !== confirm) errs.confirm = "Passwords do not match";
+    return Object.keys(errs).length ? errs : null;
+  }
+  function validateLogin() {
+    const errs = {};
+    if (!identity.trim()) errs.identity = "Enter your username or email";
+    if (!loginPw) errs.loginPw = "Enter your password";
+    return Object.keys(errs).length ? errs : null;
+  }
+
+  // Check API connectivity
+  const noApi = !API_URL;
+
+  const handleLogin = async () => {
+    if (noApi) { toast("No backend connected. Configure REPMAX_API_URL.", "error"); return; }
+    const errs = validateLogin();
+    if (errs) { setErrors(errs); return; }
+    setErrors({});
+    setLoading(true);
+    try {
+      const data = await api("/auth/login", "POST", { identity: identity.trim(), password: loginPw });
+      setToken(data.token);
+      await onSuccess(data);
+      toast(`Welcome back, @${data.user?.username || "user"}!`);
+      onClose();
+    } catch (err) {
+      toast(err.message || "Login failed", "error");
+    }
+    setLoading(false);
+  };
+
+  const handleSignup = async () => {
+    if (noApi) { toast("No backend connected. Configure REPMAX_API_URL.", "error"); return; }
+    const errs = validateSignup();
+    if (errs) { setErrors(errs); return; }
+    setErrors({});
+    setLoading(true);
+    try {
+      const data = await api("/auth/signup", "POST", {
+        username: username.trim(),
+        email: email.trim() || undefined,
+        password: signupPw,
+        passwordConfirm: confirm,
+      });
+      setToken(data.token);
+      await onSuccess(data);
+      toast(`Account created! Welcome, @${data.user?.username || username}!`);
+      onClose();
+    } catch (err) {
+      toast(err.message || "Signup failed", "error");
+    }
+    setLoading(false);
+  };
+
+  const onKeyDown = (e, action) => { if (e.key === "Enter" && !loading) action(); };
+
+  return (
+    <div className="backdrop" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+        <div className="modal-header">
+          <div>
+            <div className="form-title">{tab === "login" ? "Sign in to RepMax" : "Create your account"}</div>
+            <div className="form-sub">
+              {tab === "login" ? "Track your progress and compete with friends" : "Start your fitness journey today"}
+            </div>
+          </div>
+          <button className="modal-close" onClick={onClose} aria-label="Close modal"><Icon.X /></button>
+        </div>
+
+        {noApi && (
+          <div className="alert alert-warn mb-16">
+            <span>⚠</span>
+            <span>Backend not configured. Set <code>window.REPMAX_API_URL</code> to enable accounts.</span>
+          </div>
+        )}
+
+        <div className="tabs mb-20">
+          <button className={`tab ${tab==="login"?"active":""}`} onClick={()=>{setTab("login");setErrors({});}}>Sign In</button>
+          <button className={`tab ${tab==="signup"?"active":""}`} onClick={()=>{setTab("signup");setErrors({});}}>Create Account</button>
+        </div>
+
+        {tab === "login" ? (
+          <div className="form-grid">
+            <div className="field-group">
+              <label className="field-label" htmlFor="login-identity">Username or Email</label>
+              <input
+                id="login-identity"
+                className={`field-input${errors.identity?" error":""}`}
+                type="text"
+                placeholder="your_username"
+                autoComplete="username"
+                value={identity}
+                onChange={e=>setIdentity(e.target.value)}
+                onKeyDown={e=>onKeyDown(e,handleLogin)}
+                disabled={loading||noApi}
+              />
+              {errors.identity && <span className="field-error">{errors.identity}</span>}
+            </div>
+            <div className="field-group">
+              <label className="field-label" htmlFor="login-pw">Password</label>
+              <PasswordInput
+                id="login-pw"
+                value={loginPw}
+                onChange={e=>setLoginPw(e.target.value)}
+                autoComplete="current-password"
+                placeholder="••••••••"
+              />
+              {errors.loginPw && <span className="field-error">{errors.loginPw}</span>}
+            </div>
+            <button className="btn btn-primary btn-block" onClick={handleLogin} disabled={loading||noApi}>
+              {loading ? <><div className="spinner"/>&nbsp;Signing in…</> : "Sign In"}
+            </button>
+            <p className="text-sm text-faint" style={{textAlign:"center"}}>
+              Don't have an account?{" "}
+              <button style={{border:"none",background:"none",color:"var(--blue)",cursor:"pointer",fontWeight:600,padding:0}} onClick={()=>setTab("signup")}>Create one</button>
+            </p>
+          </div>
+        ) : (
+          <div className="form-grid">
+            <div className="field-group">
+              <label className="field-label" htmlFor="su-username">Username <span style={{color:"var(--red)"}}>*</span></label>
+              <input
+                id="su-username"
+                className={`field-input${errors.username?" error":""}`}
+                type="text"
+                placeholder="cooluser99"
+                autoComplete="username"
+                value={username}
+                onChange={e=>setUsername(e.target.value)}
+                disabled={loading||noApi}
+              />
+              {errors.username && <span className="field-error">{errors.username}</span>}
+              <span className="field-hint">At least 3 characters, lowercase</span>
+            </div>
+            <div className="field-group">
+              <label className="field-label" htmlFor="su-email">Email <span style={{color:"var(--text3)"}}>optional</span></label>
+              <input
+                id="su-email"
+                className="field-input"
+                type="email"
+                placeholder="you@example.com"
+                autoComplete="email"
+                value={email}
+                onChange={e=>setEmail(e.target.value)}
+                disabled={loading||noApi}
+              />
+            </div>
+            <div className="field-group">
+              <label className="field-label" htmlFor="su-pw">Password <span style={{color:"var(--red)"}}>*</span></label>
+              <PasswordInput
+                id="su-pw"
+                value={signupPw}
+                onChange={e=>setSignupPw(e.target.value)}
+                autoComplete="new-password"
+                placeholder="Min. 8 characters"
+              />
+              {errors.signupPw && <span className="field-error">{errors.signupPw}</span>}
+            </div>
+            <div className="field-group">
+              <label className="field-label" htmlFor="su-confirm">Confirm Password <span style={{color:"var(--red)"}}>*</span></label>
+              <PasswordInput
+                id="su-confirm"
+                value={confirm}
+                onChange={e=>setConfirm(e.target.value)}
+                autoComplete="new-password"
+                placeholder="Repeat password"
+              />
+              {errors.confirm && <span className="field-error">{errors.confirm}</span>}
+            </div>
+            <button className="btn btn-primary btn-block" onClick={handleSignup} disabled={loading||noApi}>
+              {loading ? <><div className="spinner"/>&nbsp;Creating account…</> : "Create Account"}
+            </button>
+            <p className="text-sm text-faint" style={{textAlign:"center"}}>
+              Already have an account?{" "}
+              <button style={{border:"none",background:"none",color:"var(--blue)",cursor:"pointer",fontWeight:600,padding:0}} onClick={()=>setTab("login")}>Sign in</button>
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Topbar ─────────────────────────────────────────────── */
+function Topbar({ user, page, setPage, onSignIn, onSignUp, onLogout }) {
+  const [ddOpen, setDdOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const ddRef = useRef(null);
+
+  useEffect(() => {
+    const handler = e => { if (ddRef.current && !ddRef.current.contains(e.target)) setDdOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const navItems = [
+    { id:"dashboard",   label:"Dashboard"   },
+    { id:"friends",     label:"Friends"     },
+    { id:"leaderboard", label:"Leaderboard" },
+  ];
+
+  const initials = user ? user.username.slice(0, 2).toUpperCase() : "";
+
+  return (
+    <>
+      <header className="topbar">
+        <div className="topbar-inner">
+          <a className="logo" href="#" onClick={e=>{e.preventDefault();setPage("dashboard");}}>
+            <div className="logo-badge"><Icon.Logo /></div>
+            RepMax
+          </a>
+
+          <nav className="topbar-nav" aria-label="Main navigation">
+            {navItems.map(n => (
+              <button key={n.id} className={`topbar-nav-btn ${page===n.id?"active":""}`} onClick={()=>setPage(n.id)}>
+                {n.label}
+              </button>
+            ))}
+          </nav>
+
+          <div className="topbar-right">
+            <div className="account-wrap" ref={ddRef}>
+              <button className="account-btn" onClick={()=>setDdOpen(v=>!v)} aria-expanded={ddOpen} aria-haspopup="true">
+                {user && <div className="avatar">{initials}</div>}
+                {user ? `@${user.username}` : "Account"}
+                <Icon.Caret />
+              </button>
+              {ddOpen && (
+                <div className="dropdown" role="menu">
+                  {user ? (
+                    <>
+                      <div className="dropdown-user">
+                        <div className="dropdown-user-name">@{user.username}</div>
+                        {user.email && <div className="dropdown-user-sub">{user.email}</div>}
+                      </div>
+                      <button className="dropdown-item" role="menuitem" onClick={()=>{setPage("dashboard");setDdOpen(false);}}>
+                        <Icon.User /> Dashboard
+                      </button>
+                      <div className="dropdown-divider" />
+                      <button className="dropdown-item danger" role="menuitem" onClick={()=>{onLogout();setDdOpen(false);}}>
+                        <Icon.Out /> Sign out
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="dropdown-item" role="menuitem" onClick={()=>{onSignIn();setDdOpen(false);}}>Sign In</button>
+                      <button className="dropdown-item" role="menuitem" onClick={()=>{onSignUp();setDdOpen(false);}}>Create Account</button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+            <button className="mobile-menu-btn" aria-label="Menu" onClick={()=>setMobileOpen(v=>!v)}>
+              {mobileOpen ? <Icon.X /> : <Icon.Ham />}
+            </button>
+          </div>
+        </div>
+      </header>
+      {mobileOpen && (
+        <nav className="mobile-nav" aria-label="Mobile navigation">
+          {navItems.map(n=>(
+            <button key={n.id} className={`mobile-nav-btn ${page===n.id?"active":""}`} onClick={()=>{setPage(n.id);setMobileOpen(false);}}>
+              {n.label}
+            </button>
+          ))}
+          <div style={{height:1,background:"var(--border)",margin:"8px 0"}} />
+          {user
+            ? <button className="mobile-nav-btn" style={{color:"var(--red)"}} onClick={()=>{onLogout();setMobileOpen(false);}}>Sign out</button>
+            : <>
+                <button className="mobile-nav-btn" onClick={()=>{onSignIn();setMobileOpen(false);}}>Sign In</button>
+                <button className="mobile-nav-btn" onClick={()=>{onSignUp();setMobileOpen(false);}}>Create Account</button>
+              </>
+          }
+        </nav>
+      )}
+    </>
+  );
+}
+
+/* ── Dashboard Page ─────────────────────────────────────── */
+function DashboardPage({ logs, user, onLogged, toast, onSignIn }) {
+  const [reps, setReps] = useState({ pushups: 0, pullups: 0, situps: 0, squats: 0 });
+  const [saving, setSaving] = useState(false);
+  const today = todayStr();
+
+  const todayLog = useMemo(() => logs.find(l => l.date === today), [logs, today]);
+  const prs = useMemo(() => {
+    const m = { pushups: 0, pullups: 0, situps: 0, squats: 0 };
+    logs.forEach(l => EXES.forEach(ex => { m[ex.id] = Math.max(m[ex.id], l[ex.id] || 0); }));
+    return m;
+  }, [logs]);
+
+  useEffect(() => {
+    if (todayLog) setReps({ pushups: todayLog.pushups||0, pullups: todayLog.pullups||0, situps: todayLog.situps||0, squats: todayLog.squats||0 });
+  }, [todayLog]);
+
+  const totalReps = useMemo(() => logs.reduce((s, l) => s + EXES.reduce((ss, ex) => ss + (l[ex.id]||0), 0), 0), [logs]);
+
+  const canSave = Object.values(reps).some(v => v > 0) && !!user;
+
+  const save = async () => {
+    if (!user) { onSignIn(); return; }
+    setSaving(true);
+    try {
+      const payload = { date: today, ...Object.fromEntries(Object.entries(reps).map(([k,v])=>[k,Number(v)||0])) };
+      await api("/workouts/log", "POST", payload);
+      onLogged(payload);
+      toast(`Workout saved! ${Object.values(payload).filter(v=>typeof v==="number"&&v>0).reduce((s,v)=>s+v,0)} total reps today.`);
+    } catch (err) {
+      if (err.message === "no_api") toast("Connect your backend to save workouts.", "error");
+      else toast(err.message || "Save failed", "error");
+    }
+    setSaving(false);
+  };
+
+  const recent = useMemo(() => [...logs].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10), [logs]);
+
+  return (
+    <div className="page">
+      {/* Hero */}
+      <div className="hero mb-24">
+        <div className="hero-title">
+          {user ? `Welcome back, @${user.username} 👋` : "RepMax — Track Your Max Reps"}
+        </div>
+        <div className="hero-sub">
+          {user
+            ? "Log today's max reps, track your progress, and compete on the leaderboard."
+            : "Sign in to sync workouts across devices, add friends, and climb the leaderboards."}
+        </div>
+        {!user && (
+          <div className="hero-cta">
+            <button className="btn btn-primary btn-lg" onClick={onSignIn}>Get Started Free</button>
+            <a className="btn btn-ghost btn-lg" href="#log-section">Log a Workout</a>
+          </div>
+        )}
+      </div>
+
+      {/* Stats */}
+      <div className="stat-grid">
+        <div className="stat-card">
+          <div className="stat-icon" style={{background:"#052e16"}}>💪</div>
+          <div className="stat-label">Days Logged</div>
+          <div className="stat-value" style={{color:"var(--green)"}}>{logs.length}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon" style={{background:"#0c1a3b"}}>📊</div>
+          <div className="stat-label">Total Reps</div>
+          <div className="stat-value" style={{color:"var(--blue)"}}>{totalReps.toLocaleString()}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon" style={{background:"#1f0b00"}}>🔥</div>
+          <div className="stat-label">Best Pushups</div>
+          <div className="stat-value" style={{color:"var(--orange)"}}>{prs.pushups}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon" style={{background:"#1e0b3b"}}>🏆</div>
+          <div className="stat-label">Best Pullups</div>
+          <div className="stat-value" style={{color:"var(--purple)"}}>{prs.pullups}</div>
+        </div>
+      </div>
+
+      <div className="grid-2" style={{gap:24}}>
+        {/* Log entry */}
+        <div>
+          <div id="log-section" className="section-head">
+            <div>
+              <div className="section-title">Today's Entry</div>
+              <div className="section-sub">{today} — {todayLog ? "Update your session" : "Log your max reps"}</div>
+            </div>
+            {todayLog && <span className="badge badge-green">Logged ✓</span>}
+          </div>
+
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            {EXES.map(ex => {
+              const isPR = reps[ex.id] > 0 && reps[ex.id] > prs[ex.id];
+              return (
+                <div key={ex.id} className={`ex-card ${isPR?"pr":""}`}>
+                  <div className="ex-card-head">
+                    <div className="ex-card-info">
+                      <div className="ex-icon" style={{background:`${ex.color}18`}}>{ex.emoji}</div>
+                      <div>
+                        <div style={{fontWeight:700,fontSize:15}}>{ex.label}</div>
+                        <div style={{fontSize:12,color:"var(--text3)"}}>PR: {prs[ex.id]} reps</div>
+                      </div>
+                    </div>
+                    {isPR && <span className="badge badge-green">NEW PR!</span>}
+                  </div>
+                  <div className="stepper">
+                    <button className="stepper-btn" aria-label={`Decrease ${ex.label}`}
+                      onClick={()=>setReps(r=>({...r,[ex.id]:Math.max(0,r[ex.id]-1)}))}>−</button>
+                    <div className="stepper-val" style={{color: reps[ex.id]>0 ? ex.color : "var(--text3)"}}>{reps[ex.id]}</div>
+                    <button className="stepper-btn" aria-label={`Increase ${ex.label}`}
+                      onClick={()=>setReps(r=>({...r,[ex.id]:r[ex.id]+1}))}>+</button>
+                  </div>
+                </div>
+              );
+            })}
+
+            <button className="btn btn-primary btn-block" style={{marginTop:4}} onClick={save}
+              disabled={saving || (!user && false)}>
+              {saving ? <><div className="spinner"/>&nbsp;Saving…</> : user ? "Save Today's Workout" : "Sign In to Save →"}
+            </button>
+            {!user && (
+              <div className="alert alert-info">
+                <span>ℹ</span>
+                <span>Create an account to save, sync, and compete with friends.</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Recent history */}
+        <div>
+          <div className="section-head">
+            <div>
+              <div className="section-title">Recent History</div>
+              <div className="section-sub">Last {Math.min(10, logs.length)} sessions</div>
+            </div>
+          </div>
+          <div className="card" style={{padding:0,overflow:"hidden"}}>
+            {recent.length === 0 ? (
+              <div className="empty">
+                <div className="empty-icon">📋</div>
+                <div className="empty-title">No logs yet</div>
+                <div className="empty-sub">Log your first workout to start building your history.</div>
+              </div>
+            ) : (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      {EXES.map(ex=><th key={ex.id}>{ex.emoji}</th>)}
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recent.map((l,i)=>(
+                      <tr key={i}>
+                        <td style={{fontWeight:600,color:"var(--text)"}}>{l.date}</td>
+                        {EXES.map(ex=><td key={ex.id} style={{color:ex.color,fontWeight:700}}>{l[ex.id]||0}</td>)}
+                        <td style={{fontWeight:700}}>{EXES.reduce((s,ex)=>s+(l[ex.id]||0),0)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Friends Page ───────────────────────────────────────── */
+function FriendsPage({ user, toast, onSignIn }) {
+  const [q, setQ]           = useState("");
+  const [results, setResults] = useState([]);
+  const [requests, setRequests] = useState([]);
+  const [friends, setFriends]   = useState([]);
+  const [searching, setSearching] = useState(false);
+
+  const refresh = useCallback(async () => {
+    if (!user) return;
+    try {
+      const [reqs, fs] = await Promise.all([api("/auth/friends/requests"), api("/auth/friends")]);
+      setRequests(reqs);
+      setFriends(fs);
+    } catch (err) {
+      if (err.message !== "no_api") toast(err.message, "error");
+    }
+  }, [user]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const search = async () => {
+    if (!q.trim()) return;
+    setSearching(true);
+    try {
+      const data = await api(`/auth/users/search?q=${encodeURIComponent(q.trim())}`);
+      setResults(data);
+    } catch (err) {
+      toast(err.message, "error");
+    }
+    setSearching(false);
+  };
+
+  const sendRequest = async username => {
+    try {
+      await api("/auth/friends/request", "POST", { toUsername: username });
+      toast(`Friend request sent to @${username}`);
+      search();
+    } catch (err) {
+      toast(err.message, "error");
+    }
+  };
+
+  const respond = async (requestId, action) => {
+    try {
+      await api(`/auth/friends/request/${requestId}/respond`, "POST", { action });
+      toast(`Request ${action}ed`);
+      refresh();
+    } catch (err) {
+      toast(err.message, "error");
+    }
+  };
+
+  if (!user) return (
+    <div className="page">
+      <div className="card" style={{textAlign:"center",padding:"60px 24px"}}>
+        <div style={{fontSize:48,marginBottom:16}}>👥</div>
+        <div style={{fontSize:20,fontWeight:800,marginBottom:8}}>Friends & Social</div>
+        <div style={{color:"var(--text2)",maxWidth:320,margin:"0 auto 24px"}}>
+          Sign in to search for friends, send requests, and see your network.
+        </div>
+        <button className="btn btn-primary" onClick={onSignIn}>Sign In to Continue</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="page">
+      <div className="section-head mb-24">
+        <div>
+          <div className="section-title" style={{fontSize:22}}>Friends</div>
+          <div className="section-sub">Connect and compete with other athletes</div>
+        </div>
+      </div>
+
+      <div className="grid-2" style={{gap:24}}>
+        {/* Search */}
+        <div style={{display:"flex",flexDirection:"column",gap:16}}>
+          <div className="card">
+            <div className="card-title">Find Athletes</div>
+            <div style={{display:"flex",gap:10}}>
+              <div className="field-group" style={{flex:1}}>
+                <label className="field-label" htmlFor="search-q">Search by username</label>
+                <input id="search-q" className="field-input" placeholder="username…" value={q}
+                  onChange={e=>setQ(e.target.value)}
+                  onKeyDown={e=>e.key==="Enter"&&search()}
+                />
+              </div>
+              <button className="btn btn-ghost" style={{alignSelf:"flex-end"}} onClick={search} disabled={searching}>
+                {searching ? <div className="spinner"/> : <Icon.Search />}
+              </button>
+            </div>
+
+            {results.length > 0 && (
+              <div style={{display:"flex",flexDirection:"column",gap:8,marginTop:16}}>
+                {results.map(r=>(
+                  <div key={r.id} className="friend-card">
+                    <div className="friend-info">
+                      <div className="friend-avatar">{r.username.slice(0,2).toUpperCase()}</div>
+                      <div>
+                        <div className="friend-name">@{r.username}</div>
+                        {r.alreadyFriends && <span className="badge badge-green" style={{marginTop:4}}>Friends</span>}
+                        {r.outgoingPending && <span className="badge badge-blue" style={{marginTop:4}}>Pending</span>}
+                      </div>
+                    </div>
+                    {!r.alreadyFriends && !r.outgoingPending && (
+                      <button className="btn btn-ghost btn-sm" onClick={()=>sendRequest(r.username)}>
+                        <Icon.Plus /> Add
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Incoming requests */}
+          <div className="card">
+            <div className="card-title" style={{display:"flex",justifyContent:"space-between"}}>
+              Incoming Requests
+              {requests.length > 0 && <span className="badge badge-orange">{requests.length}</span>}
+            </div>
+            {requests.length === 0 ? (
+              <div className="text-faint text-sm" style={{paddingTop:4}}>No pending requests</div>
+            ) : (
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                {requests.map(r=>(
+                  <div key={r.requestId} className="friend-card">
+                    <div className="friend-info">
+                      <div className="friend-avatar">{r.fromUsername.slice(0,2).toUpperCase()}</div>
+                      <div className="friend-name">@{r.fromUsername}</div>
+                    </div>
+                    <div style={{display:"flex",gap:8}}>
+                      <button className="btn btn-primary btn-sm" onClick={()=>respond(r.requestId,"accept")}>Accept</button>
+                      <button className="btn btn-ghost btn-sm" onClick={()=>respond(r.requestId,"reject")}>Decline</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Friends list */}
+        <div className="card">
+          <div className="card-title" style={{display:"flex",justifyContent:"space-between"}}>
+            Your Friends
+            <span className="badge badge-blue">{friends.length}</span>
+          </div>
+          {friends.length === 0 ? (
+            <div className="empty">
+              <div className="empty-icon">🤝</div>
+              <div className="empty-title">No friends yet</div>
+              <div className="empty-sub">Search for athletes and send them a request to get started.</div>
+            </div>
+          ) : (
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              {friends.map(f=>(
+                <div key={f.id} className="friend-card">
+                  <div className="friend-info">
+                    <div className="friend-avatar">{f.username.slice(0,2).toUpperCase()}</div>
+                    <div>
+                      <div className="friend-name">@{f.username}</div>
+                      <div className="friend-sub">Friend</div>
+                    </div>
+                  </div>
+                  <span className="badge badge-green"><Icon.Check /> Connected</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Leaderboard Page ───────────────────────────────────── */
+function LeaderboardPage({ user, toast, onSignIn }) {
+  const [boards, setBoards] = useState(null);
+  const [cat, setCat] = useState("progress");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    setLoading(true);
+    api("/auth/leaderboard")
+      .then(d => { setBoards(d); setLoading(false); })
+      .catch(err => { if (err.message !== "no_api") toast(err.message, "error"); setLoading(false); });
+  }, [user]);
+
+  const categories = [
+    { id:"progress",   label:"Most Progress" },
+    { id:"totalReps",  label:"Total Reps"    },
+    { id:"streaks",    label:"Streaks"       },
+    { id:"maxPushups", label:"Push Ups PR"   },
+    { id:"maxPullups", label:"Pull Ups PR"   },
+    { id:"maxSitups",  label:"Sit Ups PR"    },
+    { id:"maxSquats",  label:"Squats PR"     },
+  ];
+
+  const valueLabel = {
+    progress:   r => `${r.progressScore} pts`,
+    totalReps:  r => r.totalReps.toLocaleString(),
+    streaks:    r => `${r.maxStreak} days`,
+    maxPushups: r => `${r.prs.pushups} reps`,
+    maxPullups: r => `${r.prs.pullups} reps`,
+    maxSitups:  r => `${r.prs.situps} reps`,
+    maxSquats:  r => `${r.prs.squats} reps`,
+  };
+
+  const rankClass = i => i===0?"rank rank-1":i===1?"rank rank-2":i===2?"rank rank-3":"rank";
+  const rankLabel = i => i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1;
+
+  if (!user) return (
+    <div className="page">
+      <div className="card" style={{textAlign:"center",padding:"60px 24px"}}>
+        <div style={{fontSize:48,marginBottom:16}}>🏆</div>
+        <div style={{fontSize:20,fontWeight:800,marginBottom:8}}>Leaderboard</div>
+        <div style={{color:"var(--text2)",maxWidth:320,margin:"0 auto 24px"}}>
+          Sign in to see who's crushing it and where you rank.
+        </div>
+        <button className="btn btn-primary" onClick={onSignIn}>Sign In to Compete</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="page">
+      <div className="section-head mb-20">
+        <div>
+          <div className="section-title" style={{fontSize:22}}>Leaderboard</div>
+          <div className="section-sub">Compete across every metric</div>
+        </div>
+      </div>
+      <div className="lb-cats">
+        {categories.map(c=>(
+          <button key={c.id} className={`lb-cat ${cat===c.id?"active":""}`} onClick={()=>setCat(c.id)}>
+            {c.label}
+          </button>
+        ))}
+      </div>
+      <div className="card" style={{padding:0,overflow:"hidden"}}>
+        {loading ? (
+          <div className="empty"><div style={{fontSize:24}}>⏳</div><div className="empty-title">Loading…</div></div>
+        ) : boards && boards[cat]?.length > 0 ? (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr><th>#</th><th>Athlete</th><th>{categories.find(c2=>c2.id===cat)?.label}</th></tr>
+              </thead>
+              <tbody>
+                {(boards[cat]||[]).map((row, i) => (
+                  <tr key={row.username}>
+                    <td className={rankClass(i)}>{rankLabel(i)}</td>
+                    <td>
+                      <div style={{display:"flex",alignItems:"center",gap:10}}>
+                        <div className="friend-avatar" style={{width:32,height:32,fontSize:11}}>
+                          {row.username.slice(0,2).toUpperCase()}
+                        </div>
+                        <span className="username-cell">@{row.username}</span>
+                      </div>
+                    </td>
+                    <td className="score-cell">{valueLabel[cat](row)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="empty">
+            <div className="empty-icon">📊</div>
+            <div className="empty-title">No data yet</div>
+            <div className="empty-sub">Be the first to log a workout and top this board.</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Root App ───────────────────────────────────────────── */
+function App() {
+  const [user, setUser]     = useState(null);
+  const [logs, setLogs]     = useState([]);
+  const [page, setPage]     = useState("dashboard");
+  const [authModal, setAuthModal] = useState(null); // null | "login" | "signup"
+  const { toasts, toast }   = useToast();
+
+  // Auto-hydrate from stored token on mount
+  useEffect(() => {
+    const token = getToken();
+    if (!token || !API_URL) return;
+    api("/auth/profile")
+      .then(data => {
+        setUser({ username: data.username, email: data.email || "" });
+        setLogs(data.logs || []);
+      })
+      .catch(() => clearToken());
+  }, []);
+
+  const handleAuthSuccess = useCallback(async (data) => {
+    if (data.user) setUser({ username: data.user.username, email: data.user.email || "" });
+    try {
+      const profile = await api("/auth/profile");
+      setUser({ username: profile.username, email: profile.email || "" });
+      setLogs(profile.logs || []);
+    } catch {}
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    clearToken();
+    setUser(null);
+    setLogs([]);
+    toast("Signed out successfully.");
+  }, [toast]);
+
+  const handleLogged = useCallback(entry => {
+    setLogs(prev => {
+      const next = [...prev.filter(l => l.date !== entry.date), entry];
+      return next.sort((a, b) => a.date.localeCompare(b.date));
+    });
+  }, []);
+
+  return (
+    <>
+      <Topbar
+        user={user} page={page} setPage={setPage}
+        onSignIn={()=>setAuthModal("login")}
+        onSignUp={()=>setAuthModal("signup")}
+        onLogout={handleLogout}
+      />
+
+      {page === "dashboard"   && <DashboardPage   logs={logs} user={user} onLogged={handleLogged} toast={toast} onSignIn={()=>setAuthModal("login")} />}
+      {page === "friends"     && <FriendsPage     user={user} toast={toast} onSignIn={()=>setAuthModal("login")} />}
+      {page === "leaderboard" && <LeaderboardPage user={user} toast={toast} onSignIn={()=>setAuthModal("login")} />}
+
+      {authModal && (
+        <AuthModal
+          defaultTab={authModal}
+          onClose={()=>setAuthModal(null)}
+          onSuccess={handleAuthSuccess}
+          toast={toast}
+        />
+      )}
+
+      <ToastContainer toasts={toasts} />
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
